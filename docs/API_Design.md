@@ -1,6 +1,6 @@
 # API Design
 
-> This document will define the REST API contract for DocFlow.
+> This document will define the REST API contract for VaultDocs.
 
 ## Contents (To Be Completed)
 

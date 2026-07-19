@@ -1,5 +1,5 @@
 # =============================================================================
-# DocFlow — CODEOWNERS
+# VaultDocs — CODEOWNERS
 # =============================================================================
 # Defines code ownership for automatic PR review assignments.
 # See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
@@ -9,13 +9,13 @@
 *                                   @team-lead
 
 # Backend domain and application layers
-backend/src/docflow/domain/         @team-lead @developer-1
-backend/src/docflow/application/    @team-lead @developer-1
-backend/src/docflow/api/            @developer-1
+backend/src/VaultDocs/domain/         @team-lead @developer-1
+backend/src/VaultDocs/application/    @team-lead @developer-1
+backend/src/VaultDocs/api/            @developer-1
 
 # Infrastructure layer
-backend/src/docflow/infrastructure/ @developer-2
-backend/src/docflow/config/         @developer-2
+backend/src/VaultDocs/infrastructure/ @developer-2
+backend/src/VaultDocs/config/         @developer-2
 
 # Testing
 backend/tests/                      @developer-1 @developer-2

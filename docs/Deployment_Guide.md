@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> This document will define the deployment process and infrastructure for DocFlow.
+> This document will define the deployment process and infrastructure for VaultDocs.
 
 ## Contents (To Be Completed)
 

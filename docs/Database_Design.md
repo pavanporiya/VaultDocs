@@ -1,6 +1,6 @@
 # Database Design
 
-> This document will define the database schema and data modeling decisions for DocFlow.
+> This document will define the database schema and data modeling decisions for VaultDocs.
 
 ## Contents (To Be Completed)
 

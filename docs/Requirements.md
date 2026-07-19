@@ -1,6 +1,6 @@
 # Requirements
 
-> This document will capture the functional and non-functional requirements for DocFlow.
+> This document will capture the functional and non-functional requirements for VaultDocs.
 
 ## Contents (To Be Completed)
 

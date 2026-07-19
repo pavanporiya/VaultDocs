@@ -1,19 +1,19 @@
 # =============================================================================
-# DocFlow — pyproject.toml
+# VaultDocs — pyproject.toml
 # =============================================================================
 # Central configuration for the Python project: metadata, dependencies,
 # build system, and tool settings (Ruff, mypy, pytest).
 # =============================================================================
 
 [project]
-name = "docflow"
+name = "VaultDocs"
 version = "0.1.0"
-description = "DocFlow — Secure Document Management System"
+description = "VaultDocs — Secure Document Management System"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.13"
 authors = [
-    { name = "DocFlow Team" },
+    { name = "VaultDocs Team" },
 ]
 keywords = ["document-management", "fastapi", "clean-architecture"]
 
@@ -97,7 +97,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["docflow"]
+known-first-party = ["VaultDocs"]
 
 [tool.ruff.lint.per-file-ignores]
 "backend/tests/**/*.py" = ["S101", "ARG", "S106"]
@@ -125,7 +125,7 @@ addopts = [
     "-v",
     "--strict-markers",
     "--tb=short",
-    "--cov=backend/src/docflow",
+    "--cov=backend/src/VaultDocs",
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
 ]
@@ -141,7 +141,7 @@ filterwarnings = [
 
 # --------------- Coverage ---------------
 [tool.coverage.run]
-source = ["backend/src/docflow"]
+source = ["backend/src/VaultDocs"]
 omit = [
     "*/tests/*",
     "*/migrations/*",

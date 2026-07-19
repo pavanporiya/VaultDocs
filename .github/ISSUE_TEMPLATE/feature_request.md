@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature for DocFlow
+about: Suggest a new feature for VaultDocs
 title: "[FEATURE] "
 labels: enhancement
 assignees: ""

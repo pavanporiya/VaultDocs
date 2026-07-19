@@ -1,5 +1,5 @@
 # =============================================================================
-# DocFlow — Pre-commit Configuration
+# VaultDocs — Pre-commit Configuration
 # =============================================================================
 # Runs automated checks before every commit to enforce code quality.
 # Install: pre-commit install

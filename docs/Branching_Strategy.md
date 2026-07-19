@@ -1,6 +1,6 @@
 # Branching Strategy
 
-> This document will define the branching model used by the DocFlow team.
+> This document will define the branching model used by the VaultDocs team.
 
 ## Contents (To Be Completed)
 
