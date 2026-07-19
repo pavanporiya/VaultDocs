@@ -1,6 +1,6 @@
 # Sprint Planning
 
-> This document will define the sprint process and planning methodology for DocFlow.
+> This document will define the sprint process and planning methodology for VaultDocs.
 
 ## Contents (To Be Completed)
 

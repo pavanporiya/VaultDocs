@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug to help us improve DocFlow
+about: Report a bug to help us improve VaultDocs
 title: "[BUG] "
 labels: bug, triage
 assignees: ""

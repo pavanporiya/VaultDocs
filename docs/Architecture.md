@@ -1,6 +1,6 @@
 # Architecture
 
-> This document will describe the complete system architecture for DocFlow.
+> This document will describe the complete system architecture for VaultDocs.
 
 ## Contents (To Be Completed)
 

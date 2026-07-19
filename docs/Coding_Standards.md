@@ -1,6 +1,6 @@
 # Coding Standards
 
-> This document will define the coding standards and style guidelines for DocFlow.
+> This document will define the coding standards and style guidelines for VaultDocs.
 
 ## Contents (To Be Completed)
 

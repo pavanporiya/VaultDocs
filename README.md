@@ -1,10 +1,10 @@
-# DocFlow — Secure Document Management System
+# VaultDocs — Secure Document Management System
 
 > Enterprise-grade document management platform built with Clean Architecture principles.
 
 ## Overview
 
-DocFlow is a secure, scalable document management system designed for organizations that need
+ValutDocs is a secure, scalable document management system designed for organizations that need
 reliable document storage, retrieval, versioning, and access control.
 
 ## Tech Stack
@@ -40,8 +40,8 @@ See [docs/Architecture.md](docs/Architecture.md) for full details.
 
 ```bash
 # Clone the repository
-git clone https://github.com/<org>/docflow.git
-cd docflow
+git clone https://github.com/<org>/VaultDocs.git
+cd VaultDocs
 
 # Copy environment variables
 cp .env.example .env
@@ -56,15 +56,15 @@ docker compose up -d
 alembic upgrade head
 
 # Start the development server
-uv run uvicorn backend.src.docflow.main:app --reload
+uv run uvicorn backend.src.VaultDocs.main:app --reload
 ```
 
 ## Project Structure
 
 ```
-DocFlow/
+VaultDocs/
 ├── backend/              # Backend application (Python / FastAPI)
-│   ├── src/docflow/      # Source code organized by Clean Architecture
+│   ├── src/VaultDocs/      # Source code organized by Clean Architecture
 │   ├── tests/            # Unit, integration, and e2e tests
 │   ├── scripts/          # Backend utility scripts
 │   └── alembic/          # Database migration configuration

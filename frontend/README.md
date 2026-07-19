@@ -1,6 +1,6 @@
-# DocFlow — Frontend
+# VaultDocs — Frontend
 
-> Frontend application for DocFlow. Framework and tooling TBD in Sprint 1.
+> Frontend application for VaultDocs. Framework and tooling TBD in Sprint 1.
 
 ## Status
 
