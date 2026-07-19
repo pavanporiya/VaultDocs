@@ -1,0 +1,15 @@
+# =============================================================================
+# DocFlow — Docker Compose
+# =============================================================================
+# Orchestrates all services for local development.
+# Usage: docker compose up -d
+#
+# Services will be configured here during Sprint 1:
+#   - app        (FastAPI application)
+#   - db         (PostgreSQL)
+#   - redis      (Cache / session store)
+#   - mailhog    (Local email testing)
+# =============================================================================
+
+# TODO: Define services in Sprint 1
+# See docs/Deployment_Guide.md for architecture details.
