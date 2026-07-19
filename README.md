@@ -4,7 +4,7 @@
 
 ## Overview
 
-ValutDocs is a secure, scalable document management system designed for organizations that need
+VaultDocs is a secure, scalable document management system designed for organizations that need
 reliable document storage, retrieval, versioning, and access control.
 
 ## Tech Stack
