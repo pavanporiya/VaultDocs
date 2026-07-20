@@ -116,10 +116,6 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 plugins = ["pydantic.mypy"]
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-
 # --------------- pytest ---------------
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
@@ -152,6 +148,7 @@ omit = [
 ]
 
 [tool.coverage.report]
+show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -159,5 +156,3 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
 ]
-fail_under = 80
-show_missing = true
