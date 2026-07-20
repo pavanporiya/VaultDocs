@@ -1,62 +1,65 @@
-"""VaultDocs FastAPI application foundation.
-
-This module initializes the core FastAPI application for VaultDocs,
-configuring application metadata, documentation endpoints (Swagger UI & ReDoc),
-and application lifecycle management.
+"""
+Main application entry point for VaultDocs.
 """
 
-import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI
 
-# Configure logger for core application initialization
-logger = logging.getLogger("vaultdocs")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+from vaultdocs.core.logging_config import configure_logging, get_logger
+from vaultdocs.core.settings import settings
 
-# Core Metadata Definitions
-APP_TITLE: str = "VaultDocs API"
-APP_DESCRIPTION: str = "Backend API for VaultDocs Secure Document Management System"
-APP_VERSION: str = "0.1.0"
+# -------------------------------------------------------------------------
+# Configure Logging
+# -------------------------------------------------------------------------
 
-# Placeholder for OpenAPI tags metadata to organize future route specifications
-TAGS_METADATA: list[dict[str, Any]] = [
-    {
-        "name": "system",
-        "description": "System operational and health status endpoints.",
-    },
-]
+configure_logging()
+
+logger = get_logger(__name__)
+
+
+# -------------------------------------------------------------------------
+# Application Lifespan
+# -------------------------------------------------------------------------
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """Manage application lifecycle events (startup and shutdown).
-
-    Provides an async context manager handling startup setup and shutdown cleanup.
-
-    Args:
-        _app: The initialized FastAPI application instance.
-
-    Yields:
-        None: Yields control back to the application execution context.
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """
-    logger.info("Starting up VaultDocs API v%s...", APP_VERSION)
+    Handle application startup and shutdown events.
+    """
+
+    logger.info("Starting %s v%s", settings.app_name, settings.app_version)
+
     yield
-    logger.info("Shutting down VaultDocs API...")
+
+    logger.info("Shutting down %s", settings.app_name)
 
 
-app: FastAPI = FastAPI(
-    title=APP_TITLE,
-    description=APP_DESCRIPTION,
-    version=APP_VERSION,
-    openapi_tags=TAGS_METADATA,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+# -------------------------------------------------------------------------
+# FastAPI Application
+# -------------------------------------------------------------------------
+
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    debug=settings.debug,
     lifespan=lifespan,
 )
+
+
+# -------------------------------------------------------------------------
+# Root Endpoint
+# -------------------------------------------------------------------------
+
+
+@app.get("/", tags=["Root"])
+async def root() -> dict[str, str]:
+    """
+    Root endpoint.
+    """
+
+    return {
+        "message": "Welcome to VaultDocs API",
+    }
