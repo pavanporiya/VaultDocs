@@ -1,0 +1,68 @@
+# =============================================================================
+# VaultDocs — .dockerignore
+# =============================================================================
+# Excludes files from the Docker build context.
+# WHY? A smaller build context means:
+#   1. Faster `docker build` (less data sent to Docker daemon)
+#   2. No accidental inclusion of secrets (.env, private keys)
+#   3. Better Docker layer cache utilization
+# =============================================================================
+
+# --------------- Version Control ---------------
+.git
+.gitignore
+
+# --------------- Virtual Environments ---------------
+.venv
+venv
+ENV
+
+# --------------- Python Cache ---------------
+__pycache__
+*.py[cod]
+*.egg-info
+dist
+build
+
+# --------------- Environment & Secrets ---------------
+.env
+.env.local
+.env.*.local
+
+# --------------- IDE ---------------
+.idea
+.vscode
+*.swp
+*.swo
+
+# --------------- Testing ---------------
+.coverage
+htmlcov
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# --------------- Documentation ---------------
+docs
+*.md
+!README.md
+LICENSE
+
+# --------------- Frontend ---------------
+frontend
+node_modules
+
+# --------------- Docker ---------------
+docker-compose*.yml
+Dockerfile
+
+# --------------- CI/CD ---------------
+.github
+
+# --------------- Misc ---------------
+*.log
+*.bak
+*.tmp
+scripts
+.editorconfig
+.pre-commit-config.yaml

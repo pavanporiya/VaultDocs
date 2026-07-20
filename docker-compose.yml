@@ -1,15 +1,179 @@
 # =============================================================================
-# VaultDocs — Docker Compose
+# VaultDocs — Docker Compose (Development)
 # =============================================================================
 # Orchestrates all services for local development.
-# Usage: docker compose up -d
 #
-# Services will be configured here during Sprint 1:
-#   - app        (FastAPI application)
-#   - db         (PostgreSQL)
-#   - redis      (Cache / session store)
-#   - mailhog    (Local email testing)
+# Usage:
+#   docker compose up -d          Start all services in background
+#   docker compose up -d --build  Rebuild and start
+#   docker compose logs -f app    Follow backend logs
+#   docker compose down           Stop all services
+#   docker compose down -v        Stop and remove volumes (reset DB)
 # =============================================================================
 
-# TODO: Define services in Sprint 1
-# See docs/Deployment_Guide.md for architecture details.
+# ---------------------------------------------------------------------------
+# WHY specify version?
+#   Modern Docker Compose (v2) doesn't require a version field.
+#   The absence of it tells Docker to use the latest Compose spec.
+# ---------------------------------------------------------------------------
+
+services:
+  # =========================================================================
+  # Backend Application (FastAPI)
+  # =========================================================================
+  # WHY this service?
+  #   Runs our FastAPI application with hot-reloading for development.
+  #   In production, this would use a pre-built image from a registry.
+  # =========================================================================
+  app:
+    build:
+      # WHY context is "." (project root)?
+      #   The Dockerfile needs access to pyproject.toml and uv.lock at the
+      #   project root, plus backend/ source code. Setting context to root
+      #   makes all these paths available.
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: vaultdocs-app
+
+    # WHY map port 8000:8000?
+    #   Left side = host port (your machine)
+    #   Right side = container port (inside Docker)
+    #   Access the API at http://localhost:8000
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+    # WHY use volumes in development?
+    #   Bind-mount the source code so changes are reflected immediately
+    #   without rebuilding the container. Combined with uvicorn --reload,
+    #   this gives us hot-reloading.
+    volumes:
+      - ./backend/src:/app/backend/src:cached
+
+    # WHY use env_file?
+    #   Loads all variables from .env into the container's environment.
+    #   This keeps secrets out of docker-compose.yml (which IS committed).
+    env_file:
+      - .env
+
+    # WHY override environment variables here?
+    #   These override .env values for Docker-specific networking.
+    #   Inside Docker, the database host is "db" (the service name),
+    #   not "localhost" (which would refer to the container itself).
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - APP_ENV=development
+
+    # WHY depends_on with condition?
+    #   Ensures PostgreSQL is healthy and accepting connections BEFORE
+    #   the backend starts. Without this, the app might crash on startup
+    #   because the database isn't ready yet.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # WHY override the CMD for development?
+    #   The Dockerfile CMD runs uvicorn without --reload.
+    #   In development, we want hot-reloading so code changes are
+    #   picked up automatically without restarting the container.
+    command: >
+      uvicorn vaultdocs.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app/backend/src
+
+    # WHY set restart: unless-stopped?
+    #   Automatically restarts the container if it crashes,
+    #   but respects manual `docker compose stop`.
+    restart: unless-stopped
+
+    # WHY assign to a named network?
+    #   All services on the same network can communicate by service name.
+    #   "app" can reach PostgreSQL at "db:5432".
+    networks:
+      - vaultdocs-network
+
+  # =========================================================================
+  # PostgreSQL Database
+  # =========================================================================
+  # WHY PostgreSQL?
+  #   - Industry-standard relational database
+  #   - Excellent JSON support (for document metadata)
+  #   - Full-text search (for document content search)
+  #   - Row-level security (for multi-tenant access control)
+  #   - Mature, battle-tested, open source
+  # =========================================================================
+  db:
+    # WHY postgres:16-alpine?
+    #   - PostgreSQL 16 is the latest stable release
+    #   - Alpine variant is ~80MB vs ~400MB for Debian-based
+    #   - Smaller image = faster pulls, less disk usage
+    image: postgres:16-alpine
+
+    container_name: vaultdocs-db
+
+    # WHY set these environment variables?
+    #   PostgreSQL container uses these to create the initial database
+    #   and superuser on first startup.
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-VaultDocs}
+      POSTGRES_USER: ${DATABASE_USER:-VaultDocs_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-change-me-in-production}
+
+    # WHY map port 5432:5432?
+    #   Allows direct database access from the host machine
+    #   (for tools like pgAdmin, DBeaver, or psql).
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+
+    # WHY use a named volume?
+    #   Named volumes persist data across container restarts and recreations.
+    #   Without this, all database data would be lost when the container
+    #   is removed. The volume is managed by Docker and stored on the host.
+    volumes:
+      - vaultdocs-db-data:/var/lib/postgresql/data
+
+    # WHY add a health check?
+    #   Docker uses this to determine if PostgreSQL is ready to accept
+    #   connections. The `depends_on: condition: service_healthy` in the
+    #   app service waits for this check to pass.
+    #   pg_isready is PostgreSQL's built-in readiness check utility.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-VaultDocs_user} -d ${DATABASE_NAME:-VaultDocs}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    restart: unless-stopped
+
+    networks:
+      - vaultdocs-network
+
+# =============================================================================
+# Named Volumes
+# =============================================================================
+# WHY named volumes over bind mounts for databases?
+#   - Docker manages the storage location (no permission issues)
+#   - Better I/O performance on macOS/Windows
+#   - Easy to backup: docker volume inspect vaultdocs-db-data
+#   - Easy to reset: docker compose down -v
+# =============================================================================
+volumes:
+  vaultdocs-db-data:
+    name: vaultdocs-db-data
+
+# =============================================================================
+# Networks
+# =============================================================================
+# WHY a custom bridge network?
+#   - Service discovery: containers can reach each other by name
+#   - Isolation: only services in this network can communicate
+#   - The default Docker bridge network does NOT support name resolution
+# =============================================================================
+networks:
+  vaultdocs-network:
+    name: vaultdocs-network
+    driver: bridge
