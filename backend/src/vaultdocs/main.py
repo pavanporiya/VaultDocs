@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from vaultdocs.api.router import router as api_router
 from vaultdocs.core.logging_config import configure_logging, get_logger
 from vaultdocs.core.settings import settings
 
@@ -47,7 +48,7 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
-
+app.include_router(api_router)
 
 # -------------------------------------------------------------------------
 # Root Endpoint
