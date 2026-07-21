@@ -108,13 +108,23 @@ known-first-party = ["vaultdocs"]
 # --------------- mypy ---------------
 [tool.mypy]
 python_version = "3.13"
+
+plugins = ["pydantic.mypy"]
+
 strict = true
+
 warn_return_any = true
 warn_unused_configs = true
+
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-plugins = ["pydantic.mypy"]
+
+mypy_path = "backend/src"
+
+exclude = [
+    "^alembic/",
+]
 
 # --------------- pytest ---------------
 [tool.pytest.ini_options]
