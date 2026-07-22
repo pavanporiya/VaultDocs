@@ -37,6 +37,8 @@ dependencies = [
     "httpx>=0.28.0",
     "python-dotenv>=1.0.0",
     "structlog>=24.4.0",
+    "email-validator>=2.3.0",
+    "bcrypt<5",
 ]
 
 [project.optional-dependencies]
@@ -166,4 +168,10 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
     "pass",
+]
+
+[dependency-groups]
+dev = [
+    "types-passlib>=1.7.7.20260211",
+    "types-python-jose>=3.5.0.20260408",
 ]
