@@ -89,15 +89,32 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
-    # Computed Properties
+    # Database URLs
     # -------------------------------------------------------------------------
 
     @property
     def database_url(self) -> str:
-        """Return the SQLAlchemy database URL."""
+        """
+        Async SQLAlchemy database URL.
+        Used by the FastAPI application.
+        """
 
         return (
             f"postgresql+asyncpg://"
+            f"{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}"
+            f"/{self.postgres_db}"
+        )
+
+    @property
+    def alembic_database_url(self) -> str:
+        """
+        Sync database URL.
+        Used only by Alembic migrations.
+        """
+
+        return (
+            f"postgresql+psycopg://"
             f"{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}"
             f"/{self.postgres_db}"
