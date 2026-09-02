@@ -87,12 +87,14 @@ COPY backend/src/ ./backend/src/
 
 # WHY copy alembic separately?
 #   Alembic migrations need to be available for database schema management.
-COPY backend/alembic/ ./backend/alembic/
+COPY alembic/ ./alembic/
 
-# WHY update PATH?
+# WHY update PATH and PYTHONPATH?
 #   Adding .venv/bin to PATH means we can run `python`, `uvicorn`, `alembic`
 #   directly without activating the virtual environment.
-ENV PATH="/app/.venv/bin:$PATH"
+#   Adding /app/backend/src to PYTHONPATH enables importing vaultdocs module.
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/backend/src"
 
 # WHY switch to non-root user?
 #   All subsequent commands (and the running container) execute as "vaultdocs"

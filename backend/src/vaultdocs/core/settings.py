@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,26 +47,31 @@ class Settings(BaseSettings):
     postgres_host: str = Field(
         default="localhost",
         description="PostgreSQL host.",
+        validation_alias=AliasChoices("postgres_host", "database_host"),
     )
 
     postgres_port: int = Field(
         default=5432,
         description="PostgreSQL port.",
+        validation_alias=AliasChoices("postgres_port", "database_port"),
     )
 
     postgres_db: str = Field(
         default="vaultdocs",
         description="Database name.",
+        validation_alias=AliasChoices("postgres_db", "database_name"),
     )
 
     postgres_user: str = Field(
         default="vaultdocs",
         description="Database username.",
+        validation_alias=AliasChoices("postgres_user", "database_user"),
     )
 
     postgres_password: str = Field(
         default="vaultdocs_dev_password",
         description="Database password.",
+        validation_alias=AliasChoices("postgres_password", "database_password"),
     )
 
     # -------------------------------------------------------------------------
@@ -86,6 +91,20 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(
         default=30,
         description="Access token expiry in minutes.",
+    )
+
+    # -------------------------------------------------------------------------
+    # Storage Settings
+    # -------------------------------------------------------------------------
+
+    storage_dir: str = Field(
+        default="var/storage",
+        description="Path to local storage directory for uploaded files.",
+    )
+
+    max_upload_size: int = Field(
+        default=10 * 1024 * 1024,
+        description="Maximum allowed file upload size in bytes.",
     )
 
     # -------------------------------------------------------------------------

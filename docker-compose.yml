@@ -64,6 +64,7 @@ services:
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
       - APP_ENV=development
+      - PYTHONPATH=/app/backend/src
 
     # WHY depends_on with condition?
     #   Ensures PostgreSQL is healthy and accepting connections BEFORE
