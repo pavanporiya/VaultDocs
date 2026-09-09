@@ -51,16 +51,6 @@ class TokenResponse(BaseModel):
     )
 
 
-class TokenPayload(BaseModel):
-    """
-    Decoded JWT payload.
-    """
-
-    sub: str
-
-    exp: int
-
-
 class UserResponse(BaseModel):
     """
     Public user information.

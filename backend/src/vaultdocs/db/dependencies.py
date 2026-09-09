@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from vaultdocs.db.session import get_db
+from vaultdocs.db.session import AsyncSessionLocal
 
 
 async def get_database_session() -> AsyncGenerator[AsyncSession]:
@@ -14,5 +14,5 @@ async def get_database_session() -> AsyncGenerator[AsyncSession]:
     Provide a database session dependency.
     """
 
-    async for session in get_db():
+    async with AsyncSessionLocal() as session:
         yield session
