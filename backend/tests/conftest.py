@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from vaultdocs.core.security import create_access_token, hash_password
@@ -35,6 +36,10 @@ async def db_engine():
     yield engine
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+        # Drop the stale alembic_version row left behind by drop_all so the
+        # database is left in a genuinely clean state (no false "head" marker
+        # pointing at missing tables).
+        await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
     await engine.dispose()
 
 

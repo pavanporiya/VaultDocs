@@ -1,11 +1,14 @@
 # VaultDocs — Secure Document Management System
 
-> Enterprise-grade document management platform built with Clean Architecture principles.
+> Document management backend with authentication, nested folders, versioned files,
+> search, and read-only document sharing.
 
 ## Overview
 
-VaultDocs is a secure, scalable document management system designed for organizations that need
-reliable document storage, retrieval, versioning, and access control.
+VaultDocs is a FastAPI backend for storing, versioning, searching, and sharing
+documents. Users own folders and documents, upload/replace files with automatic
+version history, and can grant other registered users read-only access to
+individual documents.
 
 ## Tech Stack
 
@@ -13,8 +16,8 @@ reliable document storage, retrieval, versioning, and access control.
 |----------------|-----------------------------------|
 | Language       | Python 3.13                       |
 | Framework      | FastAPI                           |
-| Database       | PostgreSQL                        |
-| ORM            | SQLAlchemy 2.x                    |
+| Database       | PostgreSQL 16                     |
+| ORM            | SQLAlchemy 2.x (async)            |
 | Migrations     | Alembic                           |
 | Validation     | Pydantic v2                       |
 | Package Mgr    | uv                                |
@@ -22,21 +25,11 @@ reliable document storage, retrieval, versioning, and access control.
 | CI/CD          | GitHub Actions                    |
 | Testing        | pytest                            |
 | Linting        | Ruff                              |
-| Type Checking  | mypy                              |
-
-## Architecture
-
-This project follows a **Modular Monolith** architecture with **Clean Architecture** layers:
-
-```
-Presentation (API)  →  Application (Use Cases)  →  Domain (Business Rules)  →  Infrastructure (DB, Storage)
-```
-
-See [docs/Architecture.md](docs/Architecture.md) for full details.
+| Type Checking  | mypy (strict)                     |
 
 ## Getting Started
 
-> **Prerequisites:** Python 3.13+, Docker, Docker Compose, uv
+> **Prerequisites:** Python 3.13+, Docker, Docker Compose, [uv](https://docs.astral.sh/uv/)
 
 ```bash
 # Clone the repository
@@ -47,53 +40,90 @@ cd VaultDocs
 cp .env.example .env
 
 # Install dependencies
-uv sync
+uv sync --all-extras
 
-# Start services
+# Start PostgreSQL and the app
 docker compose up -d
 
 # Run migrations
-alembic upgrade head
+uv run alembic upgrade head
 
-# Start the development server
-uv run uvicorn backend.src.VaultDocs.main:app --reload
+# Start the development server (hot reload)
+uv run uvicorn vaultdocs.main:app --reload
 ```
+
+The API is then available at http://localhost:8000
+
+- Swagger UI: http://localhost:8000/docs
+- Health check: http://localhost:8000/v1/health
+- Browser demo UI (register/login/upload/download/share): http://localhost:8000/demo
+
+## Quality Checks
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy backend/src
+uv run pytest
+uv run alembic check
+```
+
+## Testing
+
+```bash
+uv run pytest
+```
+
+Tests run against the database configured in `.env` (default `localhost:5433`).
+Each test creates its schema from the models and tears it down afterwards.
 
 ## Project Structure
 
 ```
 VaultDocs/
-├── backend/              # Backend application (Python / FastAPI)
-│   ├── src/VaultDocs/      # Source code organized by Clean Architecture
-│   ├── tests/            # Unit, integration, and e2e tests
-│   ├── scripts/          # Backend utility scripts
-│   └── alembic/          # Database migration configuration
-├── frontend/             # Frontend application (future)
-├── docs/                 # Project documentation
-├── deployment/           # Deployment configurations
-├── .github/              # GitHub Actions, issue & PR templates
-└── scripts/              # Repository-level utility scripts
+├── backend/
+│   ├── src/vaultdocs/        # Application source code
+│   │   ├── api/              # FastAPI routers (v1) and dependencies
+│   │   ├── core/             # Settings, security (JWT/hashing), logging
+│   │   ├── db/               # Engine, session, base, mixins
+│   │   ├── models/           # SQLAlchemy models
+│   │   ├── schemas/          # Pydantic request/response schemas
+│   │   ├── services/         # Business logic
+│   │   └── demo.html         # Browser demo page (served at /demo)
+│   └── tests/                # pytest integration tests
+├── alembic/                  # Alembic migrations (upgrade head from repo root)
+├── docs/                     # Project documentation
+├── .github/                  # GitHub Actions workflows
+├── docker-compose.yml        # App + PostgreSQL for local development
+├── backend/Dockerfile        # Backend image (multi-stage, non-root)
+└── pyproject.toml            # Dependencies + tool configuration
 ```
 
-## Team
+## API Summary
 
-| Role           | Responsibility                             |
-|----------------|--------------------------------------------|
-| Team Lead      | Architecture, code review, sprint planning |
-| Developer 1    | Backend modules, API endpoints             |
-| Developer 2    | Infrastructure, testing, DevOps            |
+| Area         | Endpoints |
+|--------------|-----------|
+| Auth         | `POST /v1/auth/register`, `POST /v1/auth/login`, `GET /v1/auth/me` |
+| Folders      | CRUD under `/v1/folders` (nested via `parent_id`) |
+| Documents    | CRUD under `/v1/documents`, search at `/v1/documents/search` |
+| Files        | `POST/PUT /v1/documents/{id}/upload`, `GET /v1/documents/{id}/download` |
+| Versions     | `GET /v1/documents/{id}/versions[/{version_id}[/download]]` |
+| Sharing      | `POST/GET /v1/documents/{id}/shares`, `DELETE /v1/documents/{id}/shares/{share_id}` |
+
+Sharing is read-only: recipients can view and download a shared document and its
+versions but can never modify it or manage its shares. Owner-only management uses
+safe 404 responses to avoid resource enumeration.
 
 ## Documentation
 
-- [Architecture](docs/Architecture.md)
-- [API Design](docs/API_Design.md)
-- [Database Design](docs/Database_Design.md)
-- [Git Workflow](docs/Git_Workflow.md)
-- [Branching Strategy](docs/Branching_Strategy.md)
-- [Coding Standards](docs/Coding_Standards.md)
-- [Sprint Planning](docs/Sprint_Planning.md)
-- [Deployment Guide](docs/Deployment_Guide.md)
-- [Requirements](docs/Requirements.md)
+- [Project Overview](docs/01_Project_Overview.md)
+- [Requirements Specification](docs/02_Software_Requirements_Specification.md)
+- [System Architecture](docs/03_System_Architecture.md)
+- [Database Design](docs/04_Database_Design.md)
+- [API Design](docs/05_API_Design.md)
+- [Development Guide](docs/06_Development_Guide.md)
+- [Deployment Guide](docs/07_Deployment_Guide.md)
+- [Product Roadmap](docs/08_Product_Roadmap.md)
 
 ## License
 

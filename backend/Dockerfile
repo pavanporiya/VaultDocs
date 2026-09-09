@@ -89,6 +89,13 @@ COPY backend/src/ ./backend/src/
 #   Alembic migrations need to be available for database schema management.
 COPY alembic/ ./alembic/
 
+# WHY create the storage directory here?
+#   The app writes uploaded files to ./var/storage (relative to /app).
+#   The directory must exist AND be owned by the non-root "vaultdocs" user,
+#   otherwise file uploads fail with FileNotFoundError/PermissionError.
+RUN mkdir -p /app/var/storage \
+    && chown -R vaultdocs:vaultdocs /app/var
+
 # WHY update PATH and PYTHONPATH?
 #   Adding .venv/bin to PATH means we can run `python`, `uvicorn`, `alembic`
 #   directly without activating the virtual environment.
@@ -100,6 +107,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
 #   All subsequent commands (and the running container) execute as "vaultdocs"
 #   user, not root. This is a security hardening measure.
 USER vaultdocs
+
+# Persist uploaded files across container restarts by declaring the storage
+# path as a volume (anonymous volume; replace with a named volume if needed).
+VOLUME ["/app/var/storage"]
 
 # WHY EXPOSE 8000?
 #   Documents which port the application listens on.

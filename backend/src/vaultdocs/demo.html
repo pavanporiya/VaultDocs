@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VaultDocs — Live Demo</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --dim:#94a3b8; --acc:#38bdf8; --ok:#4ade80; --err:#f87171; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:18px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:20px; margin:0; }
+  #who { color:var(--dim); font-size:13px; margin-left:auto; }
+  main { display:grid; grid-template-columns: 380px 1fr; gap:18px; padding:18px 28px; max-width:1200px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; }
+  .card h2 { margin:0 0 12px; font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:var(--acc); }
+  label { display:block; font-size:12px; color:var(--dim); margin:8px 0 4px; }
+  input { width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:#0b1220; color:var(--txt); font-size:14px; }
+  button { margin-top:10px; width:100%; padding:9px 12px; border:0; border-radius:8px; background:var(--acc); color:#082f49; font-weight:700; font-size:14px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--acc); font-weight:600; }
+  button.danger { background:transparent; color:var(--err); border:1px solid var(--err); font-weight:600; }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  #log { font-family:ui-monospace,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; background:#0b1220; border:1px solid var(--line); border-radius:10px; padding:12px; height:calc(100vh - 130px); overflow:auto; }
+  .ok { color:var(--ok); } .err { color:var(--err); } .dim { color:var(--dim); }
+  .kv { font-size:12px; color:var(--dim); margin-top:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔐 VaultDocs — Live Demo</h1>
+  <span id="who">not logged in</span>
+</header>
+<main>
+  <div>
+    <div class="card">
+      <h2>Account</h2>
+      <label>Full name</label><input id="fullName" value="Alice Example">
+      <label>Email</label><input id="emailA" value="alice@example.com">
+      <label>Password</label><input id="passA" type="password" value="Password123!">
+      <div class="row">
+        <button onclick="register()">Register</button>
+        <button class="ghost" onclick="login()">Login</button>
+      </div>
+      <button class="ghost" onclick="me()">Who am I? (GET /auth/me)</button>
+      <button class="danger" onclick="logout()">Logout (drop local token)</button>
+    </div>
+
+    <div class="card">
+      <h2>Document</h2>
+      <label>Name</label><input id="docName" value="My Secret Notes">
+      <div class="row">
+        <button onclick="createDoc()">Create</button>
+        <button class="ghost" onclick="listDocs()">List mine</button>
+      </div>
+      <label>Pick document</label>
+      <select id="docSel" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:#0b1220;color:var(--txt)"></select>
+      <label>File (upload / replace)</label>
+      <input type="file" id="fileInput">
+      <div class="row">
+        <button onclick="upload('POST')">Upload</button>
+        <button class="ghost" onclick="upload('PUT')">Replace</button>
+      </div>
+      <div class="row">
+        <button class="ghost" onclick="download()">Download current</button>
+        <button class="ghost" onclick="loadVersions()">Versions</button>
+      </div>
+      <button class="ghost" onclick="downloadVersion()">Download selected version</button>
+      <button class="danger" onclick="deleteDoc()">Delete document</button>
+    </div>
+
+    <div class="card">
+      <h2>Share (read-only)</h2>
+      <label>Recipient email (must be registered)</label>
+      <input id="shareEmail" value="bob@example.com">
+      <div class="row">
+        <button onclick="share()">Share doc</button>
+        <button class="ghost" onclick="listShares()">List shares</button>
+      </div>
+      <label>Share ID (fill from list, to revoke)</label>
+      <input id="shareId" placeholder="uuid">
+      <div class="row">
+        <button class="danger" onclick="revoke()">Revoke share</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div id="log" class="dim">// every request/response you trigger appears here, newest at bottom</div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+let token = null;
+let lastVersionList = [];
+
+function log(msg, cls) {
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = cls || '';
+  line.textContent = `[${t}] ${msg}`;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function headers() { return token ? { Authorization: `Bearer ${token}` } : {}; }
+async function show(res, label) {
+  const ct = res.headers.get('content-type') || '';
+  const text = await res.text();
+  let data = null;
+  let body = text;
+  if (ct.includes('application/json')) {
+    try { data = JSON.parse(text); body = JSON.stringify(data, null, 1).slice(0, 900); } catch {}
+  } else {
+    body = text.slice(0, 300) || '(binary/file)';
+  }
+  log(`${label} → HTTP ${res.status} ${res.ok ? '✓' : '✗'}\n${body}`, res.ok ? 'ok' : 'err');
+  return res.ok ? data : null;
+}
+
+async function register() {
+  const r = await fetch('/v1/auth/register', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ full_name:$('fullName').value, email:$('emailA').value, password:$('passA').value }) });
+  await show(r, 'REGISTER');
+}
+async function login() {
+  const r = await fetch('/v1/auth/login', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email:$('emailA').value, password:$('passA').value }) });
+  const data = await show(r, 'LOGIN');
+  if (data) { token = data.access_token; $('who').textContent = `logged in as ${$('emailA').value}`; log('token stored — try create/upload/share', 'ok'); }
+}
+function logout() { token = null; $('who').textContent = 'not logged in'; log('local token dropped — next protected call should 401', 'dim'); }
+async function me() {
+  const r = await fetch('/v1/auth/me', { headers: headers() });
+  await show(r, 'ME');
+}
+
+async function createDoc() {
+  const r = await fetch('/v1/documents', { method:'POST', headers:{ ...headers(), 'Content-Type':'application/json' },
+    body: JSON.stringify({ name:$('docName').value }) });
+  const data = await show(r, 'CREATE DOC');
+  if (data) { await listDocs(); $('docSel').value = data.id; }
+}
+async function listDocs() {
+  const r = await fetch('/v1/documents', { headers: headers() });
+  const data = await show(r, 'LIST DOCS');
+  if (data) {
+    const sel = $('docSel'); sel.innerHTML = '';
+    for (const d of data) { const o = document.createElement('option'); o.value = d.id; o.textContent = `${d.name} (${d.id.slice(0,8)})`; sel.appendChild(o); }
+    log(`${data.length} document(s) loaded into picker`, 'dim');
+  }
+}
+const docId = () => $('docSel').value;
+
+async function upload(method) {
+  const f = $('fileInput').files[0];
+  if (!f) return log('pick a file first', 'err');
+  if (!docId()) return log('create/select a document first', 'err');
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch(`/v1/documents/${docId()}/upload`, { method, headers: headers(), body: fd });
+  await show(r, `${method} UPLOAD`);
+}
+async function download() {
+  if (!docId()) return log('select a document', 'err');
+  const r = await fetch(`/v1/documents/${docId()}/download`, { headers: headers() });
+  if (!r.ok) { await show(r, 'DOWNLOAD'); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (r.headers.get('content-disposition')||'').match(/"(.+)"/)?.[1] || 'download';
+  a.click();
+  log(`DOWNLOAD → HTTP 200 ✓ saved "${a.download}" (${blob.size} bytes)`, 'ok');
+}
+async function loadVersions() {
+  if (!docId()) return log('select a document', 'err');
+  const r = await fetch(`/v1/documents/${docId()}/versions`, { headers: headers() });
+  const data = await show(r, 'VERSIONS');
+  if (data) {
+    lastVersionList = data;
+    log('versions: ' + data.map(v => `#${v.version_number} ${v.original_filename} (${v.file_size}b)`).join(' | '), 'ok');
+    log('click "Download selected version" fetches the OLDEST one below latest; for exact one use list ids above', 'dim');
+  }
+}
+async function downloadVersion() {
+  if (!lastVersionList.length) return log('click Versions first', 'err');
+  const v = lastVersionList[lastVersionList.length - 1]; // oldest
+  const r = await fetch(`/v1/documents/${docId()}/versions/${v.id}/download`, { headers: headers() });
+  if (!r.ok) { await show(r, 'DL VERSION'); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = v.original_filename; a.click();
+  log(`DL VERSION #${v.version_number} → 200 ✓ saved "${v.original_filename}" (${blob.size} bytes)`, 'ok');
+}
+async function deleteDoc() {
+  if (!docId()) return log('select a document', 'err');
+  const r = await fetch(`/v1/documents/${docId()}`, { method:'DELETE', headers: headers() });
+  await show(r, 'DELETE DOC');
+  if (r.status === 204) { log('deleted ✓', 'ok'); await listDocs(); }
+}
+async function share() {
+  if (!docId()) return log('select a document', 'err');
+  const r = await fetch(`/v1/documents/${docId()}/shares`, { method:'POST', headers:{ ...headers(), 'Content-Type':'application/json' },
+    body: JSON.stringify({ user_email:$('shareEmail').value }) });
+  await show(r, 'SHARE');
+}
+async function listShares() {
+  if (!docId()) return log('select a document', 'err');
+  const r = await fetch(`/v1/documents/${docId()}/shares`, { headers: headers() });
+  const data = await show(r, 'LIST SHARES');
+  if (data) { $('shareId').value = data[0]?.id || ''; log('first share id copied to revoke field', 'dim'); }
+}
+async function revoke() {
+  if (!docId() || !$('shareId').value) return log('need document + share id', 'err');
+  const r = await fetch(`/v1/documents/${docId()}/shares/${$('shareId').value}`, { method:'DELETE', headers: headers() });
+  await show(r, 'REVOKE');
+  if (r.status === 204) log('revoked ✓ recipient loses access immediately', 'ok');
+}
+log('open two browser windows: login as Alice in one, register+login Bob in the other, share a doc Alice→Bob, watch Bob get read-only access', 'dim');
+</script>
+</body>
+</html>

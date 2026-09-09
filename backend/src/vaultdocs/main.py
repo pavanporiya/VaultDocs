@@ -4,8 +4,10 @@ Main application entry point for VaultDocs.
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib import resources
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
 from vaultdocs.api.router import router as api_router
 from vaultdocs.core.logging_config import configure_logging, get_logger
@@ -64,3 +66,19 @@ async def root() -> dict[str, str]:
     return {
         "message": "Welcome to VaultDocs API",
     }
+
+
+# -------------------------------------------------------------------------
+# Browser Demo UI
+# -------------------------------------------------------------------------
+
+
+@app.get("/demo", include_in_schema=False)
+async def demo() -> HTMLResponse:
+    """
+    Serve a lightweight browser demo for the API (register, login, upload,
+    download, share, versions). Dev convenience only.
+    """
+
+    html = resources.files("vaultdocs").joinpath("demo.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=html)

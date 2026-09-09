@@ -74,3 +74,6 @@ out/
 *.tmp
 *.temp
 .agents/
+
+# --------------- Runtime uploads ---------------
+var/

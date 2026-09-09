@@ -30,6 +30,29 @@ jobs:
 
     timeout-minutes: 15
 
+    # Tests need a live PostgreSQL; settings default to localhost:5432.
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_NAME: VaultDocs
+      DATABASE_USER: VaultDocs_user
+      DATABASE_PASSWORD: vaultdocs_ci_password
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: VaultDocs
+          POSTGRES_USER: VaultDocs_user
+          POSTGRES_PASSWORD: vaultdocs_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U VaultDocs_user -d VaultDocs"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4

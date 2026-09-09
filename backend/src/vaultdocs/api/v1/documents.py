@@ -30,6 +30,7 @@ from vaultdocs.services.document import (
     update_document,
     upload_document_file,
 )
+from vaultdocs.services.share import user_can_access_document
 
 router = APIRouter(
     prefix="/documents",
@@ -119,13 +120,18 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
     """
-    Retrieve a specific document owned by the authenticated user.
+    Retrieve a specific document owned by the authenticated user, or shared
+    with them in read-only mode.
     """
     document = await get_document_by_id(
         db=db,
         document_id=document_id,
     )
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not await user_can_access_document(
+        db=db,
+        document=document,
+        user=current_user,
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
@@ -249,13 +255,18 @@ async def download_document(
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
     """
-    Download the stored file for a document owned by the authenticated user.
+    Download the stored file for a document owned by the authenticated user,
+    or shared with them in read-only mode.
     """
     document = await get_document_by_id(
         db=db,
         document_id=document_id,
     )
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not await user_can_access_document(
+        db=db,
+        document=document,
+        user=current_user,
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
@@ -289,13 +300,18 @@ async def list_versions(
     db: AsyncSession = Depends(get_db),
 ) -> list[DocumentVersionResponse]:
     """
-    List all versions for a document owned by the authenticated user, ordered newest first.
+    List all versions for a document owned by the authenticated user, or shared
+    with them in read-only mode, ordered newest first.
     """
     document = await get_document_by_id(
         db=db,
         document_id=document_id,
     )
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not await user_can_access_document(
+        db=db,
+        document=document,
+        user=current_user,
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
@@ -325,7 +341,11 @@ async def get_version(
         db=db,
         document_id=document_id,
     )
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not await user_can_access_document(
+        db=db,
+        document=document,
+        user=current_user,
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
@@ -362,7 +382,11 @@ async def download_version(
         db=db,
         document_id=document_id,
     )
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not await user_can_access_document(
+        db=db,
+        document=document,
+        user=current_user,
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
