@@ -5,17 +5,17 @@ Revises: d175fa19e98d
 Create Date: 2026-09-02 14:26:48.453840
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '39f5f8971368'
-down_revision: Union[str, Sequence[str], None] = 'd175fa19e98d'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "39f5f8971368"
+down_revision: str | Sequence[str] | None = "d175fa19e98d"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

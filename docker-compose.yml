@@ -49,6 +49,8 @@ services:
     #   this gives us hot-reloading.
     volumes:
       - ./backend/src:/app/backend/src:cached
+      # Persist uploaded files across container recreation.
+      - vaultdocs-uploads:/app/var/storage
 
     # WHY use env_file?
     #   Loads all variables from .env into the container's environment.
@@ -165,6 +167,9 @@ services:
 volumes:
   vaultdocs-db-data:
     name: vaultdocs-db-data
+
+  vaultdocs-uploads:
+    name: vaultdocs-uploads
 
 # =============================================================================
 # Networks

@@ -13,6 +13,10 @@ from vaultdocs.schemas.folder import (
     FolderResponse,
     FolderUpdate,
 )
+from vaultdocs.schemas.share import (
+    ShareCreate,
+    ShareResponse,
+)
 
 __all__ = [
     "DocumentCreate",
@@ -22,4 +26,6 @@ __all__ = [
     "FolderCreate",
     "FolderResponse",
     "FolderUpdate",
+    "ShareCreate",
+    "ShareResponse",
 ]
