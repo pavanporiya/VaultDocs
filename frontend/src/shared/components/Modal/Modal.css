@@ -1,0 +1,117 @@
+.vd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  animation: vd-modal-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vd-modal {
+  position: relative;
+  width: 100%;
+  max-height: calc(100vh - 3rem);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: vd-modal-scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modal Sizes */
+.vd-modal--sm {
+  max-width: 400px;
+}
+
+.vd-modal--md {
+  max-width: 560px;
+}
+
+.vd-modal--lg {
+  max-width: 720px;
+}
+
+.vd-modal--xl {
+  max-width: 960px;
+}
+
+.vd-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vd-modal__title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-main);
+  line-height: 1.3;
+}
+
+.vd-modal__close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.vd-modal__close:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-main);
+}
+
+.vd-modal__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.vd-modal__body {
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.vd-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+@keyframes vd-modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vd-modal-scale-up {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

@@ -1,0 +1,76 @@
+/* App Showcase Styling */
+.vd-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.vd-showcase-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.vd-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.vd-showcase-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.vd-showcase-box {
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 180px;
+}
+
+.vd-showcase-box-title {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+  margin-bottom: var(--spacing-sm);
+}
+
+.vd-showcase-doc-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.vd-showcase-doc-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.vd-showcase-doc-name {
+  font-weight: 500;
+  color: var(--color-text-main);
+}
+
+.vd-showcase-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+}
+
+.vd-showcase-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
