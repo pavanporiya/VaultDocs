@@ -1,0 +1,46 @@
+.vd-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-md);
+  max-width: 440px;
+  margin: 0 auto;
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-lg);
+}
+
+.vd-error-state__icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background-color: rgba(239, 68, 68, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-danger);
+  margin-bottom: var(--spacing-md);
+}
+
+.vd-error-state__title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-danger-text);
+  margin-bottom: 0.375rem;
+}
+
+.vd-error-state__description {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text);
+  opacity: 0.9;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+}
+
+.vd-error-state__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
