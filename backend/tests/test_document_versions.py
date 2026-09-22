@@ -2,8 +2,8 @@
 Integration tests for document versioning feature.
 """
 
-from uuid import UUID, uuid4
 from pathlib import Path
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
