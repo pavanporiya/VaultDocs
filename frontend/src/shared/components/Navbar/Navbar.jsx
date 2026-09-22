@@ -1,15 +1,18 @@
 import React from 'react';
-import { Menu, Shield, Search, User } from 'lucide-react';
+import { Menu, Shield, Search, User, LogOut, LogIn } from 'lucide-react';
 import Input from '../Input/Input';
+import Button from '../Button/Button';
 import './Navbar.css';
 
 /**
  * Reusable application Navbar component with logo branding, search placeholder,
- * mobile drawer toggle button, and account area placeholder.
+ * mobile drawer toggle button, and authenticated user account area.
  */
 export const Navbar = ({
   onToggleSidebar,
-  userPlaceholder = { name: 'Demo User', role: 'Developer' },
+  user = null,
+  onOpenAuthModal,
+  onLogout,
   searchQuery = '',
   onSearchChange,
   className = '',
@@ -26,7 +29,7 @@ export const Navbar = ({
           <Menu size={22} />
         </button>
 
-        <a href="/" className="vd-navbar__brand">
+        <a href="/" className="vd-navbar__brand" onClick={(e) => e.preventDefault()}>
           <div className="vd-navbar__logo">
             <Shield size={22} />
           </div>
@@ -39,7 +42,7 @@ export const Navbar = ({
         <div className="vd-navbar__search">
           <Input
             type="search"
-            placeholder="Search documents, folders, tags..."
+            placeholder="Search documents by name..."
             value={searchQuery}
             onChange={onSearchChange}
             icon={Search}
@@ -48,15 +51,38 @@ export const Navbar = ({
       </div>
 
       <div className="vd-navbar__right">
-        <div className="vd-navbar__account-placeholder" title="Account placeholder">
-          <div className="vd-navbar__avatar">
-            <User size={18} />
+        {user ? (
+          <div className="vd-navbar__account-placeholder" title={user.email}>
+            <div className="vd-navbar__avatar">
+              <User size={18} />
+            </div>
+            <div className="vd-navbar__user-info">
+              <span className="vd-navbar__user-name">{user.full_name || 'User'}</span>
+              <span className="vd-navbar__user-role">{user.email}</span>
+            </div>
+            {onLogout && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={LogOut}
+                title="Log Out"
+                onClick={onLogout}
+                style={{ marginLeft: '0.5rem' }}
+              />
+            )}
           </div>
-          <div className="vd-navbar__user-info">
-            <span className="vd-navbar__user-name">{userPlaceholder.name}</span>
-            <span className="vd-navbar__user-role">{userPlaceholder.role}</span>
+        ) : (
+          <div className="vd-navbar__guest-actions">
+            <Button
+              variant="primary"
+              size="sm"
+              icon={LogIn}
+              onClick={() => onOpenAuthModal && onOpenAuthModal('login')}
+            >
+              Sign In
+            </Button>
           </div>
-        </div>
+        )}
       </div>
     </header>
   );

@@ -1,0 +1,121 @@
+.vd-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.vd-explorer-guest {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.vd-empty-subfolders {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 0;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 0.875rem;
+}
+
+.vd-empty-subfolders-icon {
+  color: var(--color-border, #334155);
+}
+
+.vd-folders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.vd-folder-card {
+  background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border, #334155);
+  border-radius: var(--radius-md, 8px);
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vd-folder-card:hover {
+  border-color: var(--color-primary, #38bdf8);
+  transform: translateY(-2px);
+}
+
+.vd-folder-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vd-folder-icon-wrap {
+  color: var(--color-primary, #38bdf8);
+}
+
+.vd-folder-actions {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.vd-folder-act-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #94a3b8);
+  padding: 0.25rem;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+
+.vd-folder-act-btn:hover {
+  color: var(--color-text-main, #f8fafc);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.vd-folder-act-btn--danger:hover {
+  color: var(--color-danger, #ef4444);
+}
+
+.vd-folder-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vd-folder-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text-main, #f8fafc);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vd-folder-arrow {
+  color: var(--color-text-muted, #94a3b8);
+}
+
+.vd-explorer-doc-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.vd-explorer-doc-icon {
+  color: var(--color-primary, #38bdf8);
+}
+
+.vd-explorer-doc-name {
+  font-weight: 500;
+}
+
+.vd-explorer-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
