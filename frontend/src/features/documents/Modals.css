@@ -3,12 +3,12 @@
   align-items: center;
   gap: 0.375rem;
   padding: 0.25rem 0.5rem;
-  background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--color-border, #334155);
-  border-radius: var(--radius-sm, 6px);
+  background-color: var(--color-primary-light);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 0.8125rem;
-  color: var(--color-primary, #38bdf8);
+  color: var(--color-primary);
 }
 
 .vd-doc-cell {
@@ -23,10 +23,10 @@
   align-items: center;
   gap: 0.375rem;
   padding: 0.25rem 0.5rem;
-  background-color: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  border-radius: var(--radius-sm, 6px);
-  color: var(--color-success, #4ade80);
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-success-text);
   font-size: 0.8125rem;
   font-weight: 500;
 }
@@ -60,6 +60,15 @@
   margin: 0.25rem 0;
 }
 
+.vd-share-recipient {
+  font-weight: 500;
+}
+
+.vd-share-user-id {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.8125rem;
+}
+
 .vd-share-section-title {
   font-size: 0.875rem;
   font-weight: 600;
@@ -67,4 +76,150 @@
   letter-spacing: 0.05em;
   color: var(--color-text-muted, #94a3b8);
   margin: 0 0 0.5rem 0;
+}
+
+/* Version details drawer (inside VersionsModal) */
+.vd-version-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text-main, #f8fafc);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.vd-version-link:hover span {
+  color: var(--color-primary, #38bdf8);
+  text-decoration: underline;
+}
+
+.vd-version-link:focus-visible {
+  outline: 2px solid var(--color-primary, #38bdf8);
+  outline-offset: 2px;
+}
+
+.vd-version-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.vd-version-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--color-overlay, rgba(15, 23, 42, 0.45));
+  backdrop-filter: blur(2px);
+  z-index: 1010; /* above the Modal overlay (z-index: 1000) */
+  display: flex;
+  justify-content: flex-end;
+}
+
+.vd-version-drawer {
+  width: min(420px, 100vw);
+  height: 100%;
+  background-color: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  animation: vd-drawer-in 0.2s var(--ease-out-expo, ease-out);
+}
+
+@keyframes vd-drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.vd-version-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border, #334155);
+}
+
+.vd-version-drawer-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-main, #f8fafc);
+}
+
+.vd-version-drawer-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #94a3b8);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm, 6px);
+}
+
+.vd-version-drawer-close:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-surface-hover);
+}
+
+.vd-version-drawer-close {
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.vd-version-drawer-close:focus-visible {
+  outline: 2px solid var(--color-primary, #38bdf8);
+  outline-offset: 2px;
+}
+
+.vd-version-drawer-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vd-version-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--color-border, #334155);
+}
+
+.vd-version-detail-row:last-of-type {
+  border-bottom: none;
+}
+
+.vd-version-detail-label {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #94a3b8);
+  flex-shrink: 0;
+}
+
+.vd-version-detail-value {
+  font-size: 0.875rem;
+  color: var(--color-text-main, #f8fafc);
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.vd-version-detail-mono {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.8125rem;
+}
+
+.vd-version-drawer-footer {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
 }

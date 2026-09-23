@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Table, Button, Loader, ErrorState, useToast } from '../../shared/components';
-import apiClient from '../../shared/services/apiClient';
-import { Download, History, FileText } from 'lucide-react';
+import apiClient, { downloadFile, saveBlob } from '../../shared/services/apiClient';
+import { formatFileSize, formatDate } from '../../shared/utils/format';
+import { Download, History, FileText, Info, X } from 'lucide-react';
 import './Modals.css';
 
+/**
+ * Version History modal.
+ *
+ * Data is fetched live from the backend:
+ * - GET /documents/{id}/versions                list
+ * - GET /documents/{id}/versions/{version_id}   details for the drawer
+ * - GET /documents/{id}/versions/{version_id}/download  file download
+ */
 export const VersionsModal = ({ isOpen, onClose, document }) => {
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
+
+  // Version details drawer
+  const [detailsVersion, setDetailsVersion] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
 
   const toast = useToast();
 
@@ -29,31 +43,17 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
   useEffect(() => {
     if (isOpen && document?.id) {
       fetchVersions();
+      setDetailsVersion(null);
     }
   }, [isOpen, document?.id, fetchVersions]);
 
   const handleDownloadVersion = async (version) => {
     setDownloadingId(version.id);
     try {
-      const token = localStorage.getItem('vaultdocs_token');
-      const response = await fetch(`/v1/documents/${document.id}/versions/${version.id}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!response.ok) {
-        throw new Error(`Download failed with status ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = version.original_filename || `version_${version.version_number}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
+      const { blob, filename } = await downloadFile(
+        `/documents/${document.id}/versions/${version.id}/download`
+      );
+      saveBlob(blob, filename || version.original_filename || `version_${version.version_number}`);
       toast.success(`Downloaded version #${version.version_number}`);
     } catch (err) {
       toast.error(err.message || 'Download failed.', 'Error');
@@ -62,16 +62,24 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (!bytes && bytes !== 0) return 'N/A';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const openVersionDetails = async (version) => {
+    setDetailsVersion(version); // show list data immediately
+    setDetailsError('');
+    setDetailsLoading(true);
+    try {
+      // Fetch authoritative version details from the backend.
+      const fresh = await apiClient.get(`/documents/${document.id}/versions/${version.id}`);
+      setDetailsVersion(fresh);
+    } catch (err) {
+      setDetailsError(err.message || 'Could not load version details.');
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
-  const formatDate = (isoString) => {
-    if (!isoString) return 'N/A';
-    return new Date(isoString).toLocaleString();
+  const closeDetails = () => {
+    setDetailsVersion(null);
+    setDetailsError('');
   };
 
   const columns = [
@@ -89,10 +97,15 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
       header: 'Filename',
       key: 'original_filename',
       render: (row) => (
-        <div className="vd-doc-cell">
+        <button
+          type="button"
+          className="vd-version-link"
+          onClick={() => openVersionDetails(row)}
+          title="View version details"
+        >
           <FileText size={16} />
           <span>{row.original_filename}</span>
-        </div>
+        </button>
       ),
     },
     {
@@ -103,23 +116,33 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
     {
       header: 'Created At',
       key: 'created_at',
-      render: (row) => formatDate(row.created_at),
+      render: (row) => formatDate(row.created_at, { withTime: true }),
     },
     {
       header: 'Action',
       key: 'action',
       align: 'right',
       render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={Download}
-          loading={downloadingId === row.id}
-          onClick={() => handleDownloadVersion(row)}
-          aria-label={`Download version ${row.version_number}`}
-        >
-          Download
-        </Button>
+        <div className="vd-version-actions">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Info}
+            title="Version details"
+            aria-label={`View details for version ${row.version_number}`}
+            onClick={() => openVersionDetails(row)}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Download}
+            loading={downloadingId === row.id}
+            onClick={() => handleDownloadVersion(row)}
+            aria-label={`Download version ${row.version_number}`}
+          >
+            Download
+          </Button>
+        </div>
       ),
     },
   ];
@@ -148,6 +171,93 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
           emptyTitle="No versions recorded"
           emptyDescription="Upload files to create version history."
         />
+      )}
+
+      {/* Version details drawer */}
+      {detailsVersion && (
+        <div
+          className="vd-version-drawer-overlay"
+          onClick={closeDetails}
+          role="presentation"
+        >
+          <div
+            className="vd-version-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Details for version ${detailsVersion.version_number}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="vd-version-drawer-header">
+              <h4 className="vd-version-drawer-title">
+                Version Details — v{detailsVersion.version_number}
+              </h4>
+              <button
+                type="button"
+                className="vd-version-drawer-close"
+                onClick={closeDetails}
+                aria-label="Close version details"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {detailsLoading ? (
+              <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+                <Loader text="Loading version details..." />
+              </div>
+            ) : detailsError ? (
+              <ErrorState
+                title="Could not load version details"
+                description={detailsError}
+                onRetry={() => openVersionDetails(detailsVersion)}
+              />
+            ) : (
+              <div className="vd-version-drawer-body">
+                <div className="vd-version-detail-row">
+                  <span className="vd-version-detail-label">Version Number</span>
+                  <span className="vd-version-detail-value">v{detailsVersion.version_number}</span>
+                </div>
+                <div className="vd-version-detail-row">
+                  <span className="vd-version-detail-label">Version ID</span>
+                  <span className="vd-version-detail-value vd-version-detail-mono">
+                    {detailsVersion.id}
+                  </span>
+                </div>
+                <div className="vd-version-detail-row">
+                  <span className="vd-version-detail-label">Original Filename</span>
+                  <span className="vd-version-detail-value">{detailsVersion.original_filename}</span>
+                </div>
+                <div className="vd-version-detail-row">
+                  <span className="vd-version-detail-label">File Size</span>
+                  <span className="vd-version-detail-value">
+                    {formatFileSize(detailsVersion.file_size)}
+                  </span>
+                </div>
+                <div className="vd-version-detail-row">
+                  <span className="vd-version-detail-label">Content Type</span>
+                  <span className="vd-version-detail-value">{detailsVersion.content_type}</span>
+                </div>
+                <div className="vd-version-detail-row">
+                  <span className="vd-version-detail-label">Created At</span>
+                  <span className="vd-version-detail-value">
+                    {formatDate(detailsVersion.created_at, { withTime: true })}
+                  </span>
+                </div>
+                <div className="vd-version-drawer-footer">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={Download}
+                    loading={downloadingId === detailsVersion.id}
+                    onClick={() => handleDownloadVersion(detailsVersion)}
+                  >
+                    Download This Version
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </Modal>
   );

@@ -46,6 +46,12 @@
   margin-top: 0.5rem;
 }
 
+.vd-dashboard-quicknav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .vd-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -53,13 +59,25 @@
 }
 
 .vd-stat-card {
-  background-color: var(--color-surface, #1e293b);
-  border: 1px solid var(--color-border, #334155);
-  border-radius: var(--radius-lg, 12px);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
   display: flex;
   align-items: center;
   gap: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-normal), transform var(--transition-fast);
+}
+
+.vd-stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+@media (hover: hover) {
+  .vd-stat-card:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .vd-stat-icon {
@@ -72,18 +90,18 @@
 }
 
 .vd-stat-icon--blue {
-  background-color: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
 }
 
 .vd-stat-icon--green {
-  background-color: rgba(74, 222, 128, 0.1);
-  color: #4ade80;
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .vd-stat-icon--purple {
-  background-color: rgba(168, 85, 247, 0.1);
-  color: #a855f7;
+  background-color: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary-hover);
 }
 
 .vd-stat-info {

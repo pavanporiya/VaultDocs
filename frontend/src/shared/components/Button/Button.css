@@ -49,16 +49,19 @@
 .vd-button--primary {
   background-color: var(--color-primary);
   color: var(--color-text-inverse);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-primary);
 }
 
 .vd-button--primary:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2), 0 8px 16px -4px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
 }
 
 .vd-button--primary:active:not(:disabled) {
   background-color: var(--color-primary-active);
+  transform: translateY(0);
+  box-shadow: var(--shadow-primary);
 }
 
 /* Secondary Variant */
@@ -113,9 +116,10 @@
 /* Disabled & Loading States */
 .vd-button:disabled,
 .vd-button[aria-disabled="true"] {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
 .vd-button--loading .vd-button__content {

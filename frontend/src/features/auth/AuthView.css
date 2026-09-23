@@ -5,12 +5,14 @@
   align-items: center;
   min-height: calc(100vh - var(--navbar-height, 64px) - 4rem);
   padding: var(--spacing-lg, 1.5rem);
+  background: radial-gradient(1100px 500px at 50% -10%, rgba(37, 99, 235, 0.06), transparent 60%);
 }
 
 .vd-auth-card {
   width: 100%;
   max-width: 440px;
   background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-lg, 12px);
   box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(15, 23, 42, 0.1));
 }

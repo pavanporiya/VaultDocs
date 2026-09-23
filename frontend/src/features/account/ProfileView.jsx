@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { PageHeader, Card, Button, Loader, ErrorState, useToast } from '../../shared/components';
+import { PageHeader, Card, Button, Input, Loader, ErrorState, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
-import { User, ShieldCheck, Mail, Key, RefreshCw, LogOut, Settings } from 'lucide-react';
+import apiClient from '../../shared/services/apiClient';
+import { ShieldCheck, RefreshCw, LogOut, Settings, Edit2, X } from 'lucide-react';
 import './Account.css';
 
 export const ProfileView = ({ onNavigate }) => {
@@ -9,6 +10,12 @@ export const ProfileView = ({ onNavigate }) => {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  // Profile edit state (PATCH /v1/auth/me)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFullName, setEditFullName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -21,6 +28,41 @@ export const ProfileView = ({ onNavigate }) => {
       toast.error(err?.message || 'Failed to refresh profile', 'Error');
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const openEdit = () => {
+    setEditFullName(user?.full_name || '');
+    setNameError('');
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditFullName('');
+    setNameError('');
+  };
+
+  const handleSaveName = async (e) => {
+    e.preventDefault();
+    if (!editFullName.trim() || editFullName.trim().length < 2) {
+      setNameError('Full name must be at least 2 characters.');
+      return;
+    }
+
+    setSavingName(true);
+    setNameError('');
+    try {
+      await apiClient.patch('/auth/me', { full_name: editFullName.trim() });
+      await refreshUser(); // reload /auth/me into the auth context
+      toast.success('Profile updated.', 'Saved');
+      setIsEditing(false);
+    } catch (err) {
+      const message = err?.message || 'Failed to update profile.';
+      setNameError(message);
+      toast.error(message, 'Update Failed');
+    } finally {
+      setSavingName(false);
     }
   };
 
@@ -118,28 +160,62 @@ export const ProfileView = ({ onNavigate }) => {
 
       <div className="vd-account-grid">
         <Card title="Account Overview" elevation="sm">
-          <div className="vd-profile-info-list">
-            <div className="vd-info-row">
-              <span className="vd-info-label">Full Name</span>
-              <span className="vd-info-value">{user.full_name || 'N/A'}</span>
+          {isEditing ? (
+            <form onSubmit={handleSaveName} className="vd-profile-edit-form">
+              <Input
+                label="Full Name"
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                error={nameError || undefined}
+                required
+                autoFocus
+                disabled={savingName}
+              />
+              <div className="vd-profile-edit-actions">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={X}
+                  type="button"
+                  onClick={cancelEdit}
+                  disabled={savingName}
+                >
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" type="submit" loading={savingName}>
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="vd-profile-info-list">
+              <div className="vd-info-row">
+                <span className="vd-info-label">Full Name</span>
+                <span className="vd-info-value">{user.full_name || 'N/A'}</span>
+              </div>
+              <div className="vd-info-row">
+                <span className="vd-info-label">Email Address</span>
+                <span className="vd-info-value">{user.email}</span>
+              </div>
+              <div className="vd-info-row">
+                <span className="vd-info-label">User ID</span>
+                <span className="vd-info-value" style={{ fontFamily: 'var(--font-family-mono)', fontSize: '0.8rem' }}>
+                  {user.id || 'Local Token'}
+                </span>
+              </div>
+              <div className="vd-info-row">
+                <span className="vd-info-label">Account Status</span>
+                <span className="vd-info-value" style={{ color: 'var(--color-success)' }}>
+                  {user.is_active !== false ? 'Active' : 'Disabled'}
+                </span>
+              </div>
+              <div className="vd-info-row" style={{ marginTop: '0.5rem' }}>
+                <Button variant="outline" size="sm" icon={Edit2} onClick={openEdit}>
+                  Edit Full Name
+                </Button>
+              </div>
             </div>
-            <div className="vd-info-row">
-              <span className="vd-info-label">Email Address</span>
-              <span className="vd-info-value">{user.email}</span>
-            </div>
-            <div className="vd-info-row">
-              <span className="vd-info-label">User ID</span>
-              <span className="vd-info-value" style={{ fontFamily: 'var(--font-family-mono)', fontSize: '0.8rem' }}>
-                {user.id || 'Local Token'}
-              </span>
-            </div>
-            <div className="vd-info-row">
-              <span className="vd-info-label">Account Status</span>
-              <span className="vd-info-value" style={{ color: 'var(--color-success)' }}>
-                {user.is_active !== false ? 'Active' : 'Disabled'}
-              </span>
-            </div>
-          </div>
+          )}
         </Card>
 
         <Card title="Security & Authentication" elevation="sm">

@@ -10,14 +10,17 @@ import {
 } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import apiClient from '../../shared/services/apiClient';
+import { formatFileSize, formatDate } from '../../shared/utils/format';
 import {
   FileText,
   FolderOpen,
-  Share2,
+  HardDrive,
   Upload,
   Plus,
   ArrowRight,
   ShieldAlert,
+  Share2,
+  Search,
 } from 'lucide-react';
 import './DashboardView.css';
 
@@ -50,14 +53,19 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const recentDocs = documents.slice(0, 5);
+  // Backend lists documents oldest-first; "Recent" shows the newest entries.
+  const recentDocs = [...documents]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 5);
 
-  const formatFileSize = (bytes) => {
-    if (!bytes && bytes !== 0) return 'No File';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  // Real derived metrics from actual backend data.
+  const totalStorageBytes = documents.reduce(
+    (sum, doc) => sum + (typeof doc.file_size === 'number' ? doc.file_size : 0),
+    0
+  );
+  const uploadedCount = documents.filter(
+    (doc) => doc.original_filename || typeof doc.file_size === 'number'
+  ).length;
 
   const columns = [
     {
@@ -83,7 +91,7 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
     {
       header: 'Created',
       key: 'created_at',
-      render: (row) => new Date(row.created_at).toLocaleDateString(),
+      render: (row) => formatDate(row.created_at),
     },
   ];
 
@@ -122,20 +130,20 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
     <div className="vd-dashboard">
       <PageHeader
         title={`Welcome back, ${user?.full_name || 'User'}`}
-        description="Here is an overview of your documents, folders, and system status."
+        description="Here is an overview of your documents, folders, and storage."
         actions={
           <div className="vd-dashboard-actions">
             <Button
               variant="outline"
               icon={Plus}
-              onClick={() => onNavigate('folders')}
+              onClick={() => onNavigate('/explorer')}
             >
               New Folder
             </Button>
             <Button
               variant="primary"
               icon={Upload}
-              onClick={() => onNavigate('documents')}
+              onClick={() => onNavigate('/documents')}
             >
               Manage Documents
             </Button>
@@ -143,7 +151,23 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
         }
       />
 
-      {/* Stats Grid */}
+      {/* Quick navigation */}
+      <div className="vd-dashboard-quicknav">
+        <Button variant="outline" size="sm" icon={FolderOpen} onClick={() => onNavigate('/explorer')}>
+          Explorer
+        </Button>
+        <Button variant="outline" size="sm" icon={FileText} onClick={() => onNavigate('/documents')}>
+          All Documents
+        </Button>
+        <Button variant="outline" size="sm" icon={Search} onClick={() => onNavigate('/documents')}>
+          Search
+        </Button>
+        <Button variant="outline" size="sm" icon={Share2} onClick={() => onNavigate('/shared')}>
+          Shared With Me
+        </Button>
+      </div>
+
+      {/* Stats Grid — all values derived from real backend data */}
       <div className="vd-stats-grid">
         <div className="vd-stat-card">
           <div className="vd-stat-icon vd-stat-icon--blue">
@@ -167,11 +191,13 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
 
         <div className="vd-stat-card">
           <div className="vd-stat-icon vd-stat-icon--purple">
-            <Share2 size={24} />
+            <HardDrive size={24} />
           </div>
           <div className="vd-stat-info">
-            <span className="vd-stat-value">Read-Only</span>
-            <span className="vd-stat-label">Sharing Access</span>
+            <span className="vd-stat-value">{formatFileSize(totalStorageBytes)}</span>
+            <span className="vd-stat-label">
+              Storage Used ({uploadedCount} file{uploadedCount === 1 ? '' : 's'})
+            </span>
           </div>
         </div>
       </div>
@@ -179,14 +205,14 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
       {/* Recent Documents */}
       <Card
         title="Recent Documents"
-        subtitle="Your latest created and uploaded documents"
+        subtitle="Your five most recently created documents"
         elevation="sm"
         headerAction={
           <Button
             variant="ghost"
             size="sm"
             icon={ArrowRight}
-            onClick={() => onNavigate('documents')}
+            onClick={() => onNavigate('/documents')}
           >
             View All
           </Button>
@@ -211,7 +237,7 @@ export const DashboardView = ({ onNavigate, onOpenAuthModal }) => {
                 variant="primary"
                 size="sm"
                 icon={Plus}
-                onClick={() => onNavigate('documents')}
+                onClick={() => onNavigate('/documents')}
               >
                 Create Document
               </Button>

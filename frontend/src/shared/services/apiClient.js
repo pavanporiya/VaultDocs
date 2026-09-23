@@ -46,6 +46,7 @@ export const setAuthToken = (token) => {
 
 /**
  * Formats FastAPI error responses into a human-friendly string.
+ * Never exposes raw backend stack traces or storage paths.
  */
 const parseErrorMessage = (status, data) => {
   if (data && typeof data.detail === 'string') {
@@ -121,6 +122,75 @@ async function request(endpoint, options = {}) {
       null
     );
   }
+}
+
+/**
+ * Extract a filename from a Content-Disposition header when present.
+ */
+const parseContentDispositionFilename = (disposition) => {
+  if (!disposition) return null;
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  return match ? match[1] : null;
+};
+
+/**
+ * Centralized authenticated download for file/endpoint responses.
+ *
+ * Streams through the same token-injecting request pipeline as every other
+ * API call and returns the decoded blob plus the backend-suggested filename
+ * (Content-Disposition) so callers never touch fetch/localStorage directly.
+ *
+ * @param {string} endpoint - API endpoint path (e.g. `/documents/{id}/download`).
+ * @returns {Promise<{blob: Blob, filename: string|null}>}
+ */
+export async function downloadFile(endpoint) {
+  const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  const headers = new Headers();
+  const token = getAuthToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  let response;
+  try {
+    response = await fetch(url, { headers });
+  } catch (error) {
+    throw new ApiError(
+      error?.message || 'Network error. Please check your internet connection.',
+      0,
+      null
+    );
+  }
+
+  if (!response.ok) {
+    let data = null;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json().catch(() => null);
+    }
+    throw new ApiError(parseErrorMessage(response.status, data), response.status, data);
+  }
+
+  const blob = await response.blob();
+  return {
+    blob,
+    filename: parseContentDispositionFilename(response.headers.get('content-disposition')),
+  };
+}
+
+/**
+ * Trigger a browser download for a previously fetched blob.
+ */
+export function saveBlob(blob, filename) {
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(objectUrl);
 }
 
 /**
