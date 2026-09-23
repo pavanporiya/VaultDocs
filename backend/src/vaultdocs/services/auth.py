@@ -2,6 +2,8 @@
 Authentication service.
 """
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +18,7 @@ from vaultdocs.schemas.auth import (
     RegisterUserRequest,
     TokenResponse,
 )
+from vaultdocs.schemas.user import UserUpdate
 
 
 async def get_user_by_email(
@@ -96,6 +99,49 @@ async def authenticate_user(
         return None
 
     return user
+
+
+async def update_user_profile(
+    db: AsyncSession,
+    user: User,
+    update_data: UserUpdate,
+) -> User:
+    """
+    Update the current user's profile fields (currently full_name).
+
+    Raises ValueError when the resulting full_name would be empty.
+    """
+    fields_set = update_data.model_dump(exclude_unset=True)
+
+    if "full_name" in fields_set:
+        if update_data.full_name is None or not update_data.full_name.strip():
+            raise ValueError("Full name cannot be empty.")
+        user.full_name = update_data.full_name.strip()
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def get_user_preferences(user: User) -> dict[str, Any]:
+    """
+    Return the user's stored preferences (empty dict when unset).
+    """
+    return dict(user.preferences) if user.preferences else {}
+
+
+async def update_user_preferences(
+    db: AsyncSession,
+    user: User,
+    preferences: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Persist a full replacement of the user's preferences object.
+    """
+    user.preferences = preferences
+    await db.commit()
+    await db.refresh(user)
+    return dict(user.preferences) if user.preferences else {}
 
 
 async def login_user(

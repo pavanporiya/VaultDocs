@@ -30,5 +30,9 @@ class ShareResponse(BaseModel):
     id: UUID
     document_id: UUID
     shared_with_user_id: UUID
+    shared_with_email: str | None = Field(
+        default=None,
+        description="Email of the recipient user the document is shared with.",
+    )
     created_at: datetime
     updated_at: datetime

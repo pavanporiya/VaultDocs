@@ -9,15 +9,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from vaultdocs.api.dependencies.auth import get_current_user
 from vaultdocs.db.session import get_db
+from vaultdocs.models.document_share import DocumentShare
 from vaultdocs.models.user import User
 from vaultdocs.schemas.share import ShareCreate, ShareResponse
 from vaultdocs.services.document import get_document_by_id
 from vaultdocs.services.share import (
     create_share,
+    get_emails_for_users,
     get_share_for_document,
     list_document_shares,
     revoke_share,
 )
+
+
+async def _with_recipient_emails(
+    db: AsyncSession,
+    shares: list[DocumentShare],
+) -> list[ShareResponse]:
+    """
+    Serialize shares, populating shared_with_email from the users table.
+    """
+    emails = await get_emails_for_users(
+        db=db,
+        user_ids=[s.shared_with_user_id for s in shares],
+    )
+
+    responses: list[ShareResponse] = []
+    for share in shares:
+        item = ShareResponse.model_validate(share)
+        item.shared_with_email = emails.get(item.shared_with_user_id)
+        responses.append(item)
+    return responses
+
 
 router = APIRouter(
     prefix="/documents",
@@ -59,7 +82,8 @@ async def create_new_share(
             detail=str(exc),
         ) from exc
 
-    return ShareResponse.model_validate(share)
+    (response,) = await _with_recipient_emails(db, [share])
+    return response
 
 
 @router.get(
@@ -82,7 +106,7 @@ async def list_shares(
         )
 
     shares = await list_document_shares(db=db, document_id=document_id)
-    return [ShareResponse.model_validate(s) for s in shares]
+    return await _with_recipient_emails(db, shares)
 
 
 @router.delete(

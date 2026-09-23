@@ -122,6 +122,23 @@ async def revoke_share(
     await db.commit()
 
 
+async def get_emails_for_users(
+    db: AsyncSession,
+    user_ids: list[UUID],
+) -> dict[UUID, str]:
+    """
+    Return a mapping of user id -> email for the given user ids.
+    Missing users are simply absent from the mapping.
+    """
+    if not user_ids:
+        return {}
+
+    result = await db.execute(
+        select(User.id, User.email).where(User.id.in_(user_ids)),
+    )
+    return dict(result.tuples().all())
+
+
 async def user_can_access_document(
     db: AsyncSession,
     document: Document,
