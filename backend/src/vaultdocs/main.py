@@ -40,6 +40,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("Shutting down %s", settings.app_name)
 
+
 # -------------------------------------------------------------------------
 # FastAPI Application
 # -------------------------------------------------------------------------
