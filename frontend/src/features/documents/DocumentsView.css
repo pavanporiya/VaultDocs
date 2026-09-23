@@ -1,0 +1,90 @@
+.vd-documents-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.vd-docs-guest {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.vd-docs-search-bar {
+  margin-bottom: 1.25rem;
+  max-width: 480px;
+}
+
+.vd-doc-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.vd-doc-icon {
+  color: var(--color-primary, #38bdf8);
+}
+
+.vd-doc-name {
+  font-weight: 600;
+  color: var(--color-text-main, #f8fafc);
+}
+
+.vd-no-file-text {
+  color: var(--color-text-muted, #94a3b8);
+  font-style: italic;
+}
+
+.vd-doc-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.vd-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vd-file-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vd-file-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-main, #f8fafc);
+}
+
+.vd-file-input {
+  width: 100%;
+  padding: 0.625rem;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border, #334155);
+  background-color: var(--color-surface, #1e293b);
+  color: var(--color-text-main, #f8fafc);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.vd-selected-file-info {
+  font-size: 0.8125rem;
+  color: var(--color-primary, #38bdf8);
+}
+
+.vd-replace-note {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #94a3b8);
+  line-height: 1.4;
+}
+
+.vd-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}

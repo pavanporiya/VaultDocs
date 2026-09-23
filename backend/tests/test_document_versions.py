@@ -3,7 +3,7 @@ Integration tests for document versioning feature.
 """
 
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -367,7 +367,7 @@ async def test_path_traversal_version_file_download_prevented(
         f"/v1/documents/{doc_id}/versions",
         headers=auth_headers_user_a,
     )
-    version_id = versions_res.json()[0]["id"]
+    version_id = UUID(versions_res.json()[0]["id"])
 
     # Manually tamper with file_path in database to attempt path traversal
     result = await db_session.execute(

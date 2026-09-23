@@ -13,7 +13,9 @@ export const MainLayout = ({
   sidebarItems = DEFAULT_SIDEBAR_ITEMS,
   activeNavItem = 'dashboard',
   onNavItemClick,
-  userPlaceholder,
+  user,
+  onOpenAuthModal,
+  onLogout,
   searchQuery,
   onSearchChange,
   className = '',
@@ -36,7 +38,9 @@ export const MainLayout = ({
       <div className={`vd-main-layout ${className}`}>
         <Navbar
           onToggleSidebar={toggleMobileSidebar}
-          userPlaceholder={userPlaceholder}
+          user={user}
+          onOpenAuthModal={onOpenAuthModal}
+          onLogout={onLogout}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
         />

@@ -107,6 +107,12 @@ class Settings(BaseSettings):
         description="Maximum allowed file upload size in bytes.",
     )
 
+    custom_database_url: str | None = Field(
+        default=None,
+        description="Optional database URL override.",
+        validation_alias=AliasChoices("database_url", "custom_database_url"),
+    )
+
     # -------------------------------------------------------------------------
     # Database URLs
     # -------------------------------------------------------------------------
@@ -117,6 +123,8 @@ class Settings(BaseSettings):
         Async SQLAlchemy database URL.
         Used by the FastAPI application.
         """
+        if self.custom_database_url:
+            return self.custom_database_url
 
         return (
             f"postgresql+asyncpg://"
@@ -131,6 +139,13 @@ class Settings(BaseSettings):
         Sync database URL.
         Used only by Alembic migrations.
         """
+        if self.custom_database_url:
+            url = self.custom_database_url
+            if url.startswith("postgresql+asyncpg://"):
+                return url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+            if url.startswith("sqlite+aiosqlite://"):
+                return url.replace("sqlite+aiosqlite://", "sqlite://", 1)
+            return url
 
         return (
             f"postgresql+psycopg://"
