@@ -4,6 +4,8 @@ import {
   FolderOpen,
   FileText,
   Share2,
+  User,
+  Settings,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
@@ -17,6 +19,8 @@ export const DEFAULT_SIDEBAR_ITEMS = [
   { id: 'folders', label: 'Explorer / Folders', icon: FolderOpen, path: '/explorer' },
   { id: 'documents', label: 'All Documents', icon: FileText, path: '/documents' },
   { id: 'sharing', label: 'Shared With Me', icon: Share2, path: '/shared' },
+  { id: 'profile', label: 'My Profile', icon: User, path: '/profile' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   { id: 'showcase', label: 'UI Showcase', icon: SlidersHorizontal, path: '/showcase' },
 ];
 

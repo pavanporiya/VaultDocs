@@ -1,0 +1,92 @@
+/* Auth Full-Page View Styling */
+.vd-auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - var(--navbar-height, 64px) - 4rem);
+  padding: var(--spacing-lg, 1.5rem);
+}
+
+.vd-auth-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: var(--color-surface, #ffffff);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(15, 23, 42, 0.1));
+}
+
+.vd-auth-header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg, 1.5rem);
+}
+
+.vd-auth-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-primary-light, #eff6ff);
+  color: var(--color-primary, #2563eb);
+  margin-bottom: var(--spacing-sm, 0.5rem);
+}
+
+.vd-auth-title {
+  font-size: var(--font-size-xl, 1.25rem);
+  font-weight: 700;
+  color: var(--color-text-main, #0f172a);
+  margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.vd-auth-subtitle {
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text-muted, #475569);
+}
+
+.vd-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 1rem);
+}
+
+.vd-auth-error-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 0.5rem);
+  padding: 0.75rem 1rem;
+  background-color: var(--color-danger-bg, #fef2f2);
+  border: 1px solid var(--color-danger-border, #fecaca);
+  border-radius: var(--radius-md, 8px);
+  color: var(--color-danger-text, #991b1b);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.vd-auth-actions {
+  margin-top: var(--spacing-sm, 0.5rem);
+}
+
+.vd-auth-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: var(--spacing-md, 1rem);
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text-muted, #475569);
+}
+
+.vd-auth-link-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary, #2563eb);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.vd-auth-link-btn:hover {
+  text-decoration: underline;
+  color: var(--color-primary-hover, #1d4ed8);
+}
