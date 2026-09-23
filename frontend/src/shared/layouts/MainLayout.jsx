@@ -16,6 +16,7 @@ export const MainLayout = ({
   user,
   onOpenAuthModal,
   onLogout,
+  onNavigate,
   searchQuery,
   onSearchChange,
   className = '',
@@ -41,6 +42,7 @@ export const MainLayout = ({
           user={user}
           onOpenAuthModal={onOpenAuthModal}
           onLogout={onLogout}
+          onNavigate={onNavigate}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
         />

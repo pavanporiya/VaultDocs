@@ -1,0 +1,88 @@
+/* System States Styling */
+.vd-system-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--navbar-height, 64px) - 4rem);
+  padding: var(--spacing-xl, 2rem);
+  text-align: center;
+}
+
+.vd-system-card {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--color-surface, #ffffff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border, #e2e8f0);
+  padding: var(--spacing-xl, 2rem);
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(15, 23, 42, 0.1));
+}
+
+.vd-system-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full, 9999px);
+  margin-bottom: var(--spacing-md, 1rem);
+}
+
+.vd-system-icon-badge--404 {
+  background-color: var(--color-primary-light, #eff6ff);
+  color: var(--color-primary, #2563eb);
+}
+
+.vd-system-icon-badge--401 {
+  background-color: var(--color-warning-bg, #fffbe6);
+  color: var(--color-warning, #f59e0b);
+}
+
+.vd-system-icon-badge--403 {
+  background-color: var(--color-danger-bg, #fef2f2);
+  color: var(--color-danger, #ef4444);
+}
+
+.vd-system-icon-badge--500 {
+  background-color: var(--color-danger-bg, #fef2f2);
+  color: var(--color-danger, #ef4444);
+}
+
+.vd-system-icon-badge--offline {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.vd-system-code {
+  font-size: var(--font-size-2xl, 1.5rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+  font-family: var(--font-family-mono);
+}
+
+.vd-system-title {
+  font-size: var(--font-size-xl, 1.25rem);
+  font-weight: 700;
+  color: var(--color-text-main, #0f172a);
+  margin-bottom: 0.5rem;
+}
+
+.vd-system-desc {
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text-muted, #475569);
+  max-width: 400px;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-lg, 1.5rem);
+}
+
+.vd-system-actions {
+  display: flex;
+  gap: var(--spacing-md, 1rem);
+  justify-content: center;
+  flex-wrap: wrap;
+}

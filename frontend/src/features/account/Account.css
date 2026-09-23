@@ -1,0 +1,159 @@
+/* Account (Profile & Settings) Styling */
+.vd-account-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg, 1.5rem);
+  width: 100%;
+}
+
+.vd-account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--spacing-lg, 1.5rem);
+}
+
+.vd-profile-header-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg, 1.5rem);
+  padding: var(--spacing-lg, 1.5rem);
+  background: var(--color-surface, #ffffff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.vd-profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full, 9999px);
+  background: linear-gradient(135deg, var(--color-primary, #2563eb), #3b82f6);
+  color: #ffffff;
+  font-size: var(--font-size-2xl, 1.5rem);
+  font-weight: 700;
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(15, 23, 42, 0.1));
+}
+
+.vd-profile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vd-profile-name {
+  font-size: var(--font-size-xl, 1.25rem);
+  font-weight: 700;
+  color: var(--color-text-main, #0f172a);
+  margin: 0;
+}
+
+.vd-profile-email {
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text-muted, #475569);
+}
+
+.vd-profile-badges {
+  display: flex;
+  gap: var(--spacing-xs, 0.25rem);
+  margin-top: 0.25rem;
+}
+
+.vd-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+}
+
+.vd-badge--success {
+  background-color: var(--color-success-bg, #ecfdf5);
+  color: var(--color-success-text, #065f46);
+  border: 1px solid var(--color-success-border, #a7f3d0);
+}
+
+.vd-badge--primary {
+  background-color: var(--color-primary-light, #eff6ff);
+  color: var(--color-primary, #2563eb);
+  border: 1px solid var(--color-primary-border, #bfdbfe);
+}
+
+.vd-profile-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 1rem);
+}
+
+.vd-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.vd-info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.vd-info-label {
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--color-text-muted, #475569);
+}
+
+.vd-info-value {
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--color-text-main, #0f172a);
+}
+
+.vd-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 1rem);
+}
+
+.vd-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: var(--spacing-sm, 0.5rem) 0;
+}
+
+.vd-settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vd-settings-title {
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--color-text-main, #0f172a);
+}
+
+.vd-settings-desc {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-subtle, #64748b);
+}
+
+@media (max-width: 640px) {
+  .vd-profile-header-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .vd-profile-badges {
+    justify-content: center;
+  }
+  .vd-info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
