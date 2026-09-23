@@ -164,26 +164,24 @@ function MainAppContent() {
   };
 
   return (
-    <>
-      <MainLayout
-        activeNavItem={activeNav}
-        onNavItemClick={(item) => handleNavigate(item.id)}
-        user={user}
-        onOpenAuthModal={handleOpenAuthModal}
-        onLogout={logout}
-        onNavigate={handleNavigate}
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-      >
-        {renderActiveView()}
-      </MainLayout>
+    <MainLayout
+      activeNavItem={activeNav}
+      onNavItemClick={(item) => handleNavigate(item.id)}
+      user={user}
+      onOpenAuthModal={handleOpenAuthModal}
+      onLogout={logout}
+      onNavigate={handleNavigate}
+      searchQuery={searchQuery}
+      onSearchChange={handleSearchChange}
+    >
+      {renderActiveView()}
 
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialMode={authModalMode}
       />
-    </>
+    </MainLayout>
   );
 }
 

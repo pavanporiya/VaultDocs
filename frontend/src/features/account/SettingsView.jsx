@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { PageHeader, Card, Input, Select, Button, useToast } from '../../shared/components';
+import { PageHeader, Card, Select, Button, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
-import { Save, Sliders, Bell, Shield, RotateCcw } from 'lucide-react';
+import { Save, RotateCcw } from 'lucide-react';
 import './Account.css';
 
 export const SettingsView = ({ onNavigate }) => {

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { PageHeader, Card, Button, EmptyState, Loader, ErrorState } from '../../shared/components';
+import { PageHeader, Card, Button, EmptyState, Loader } from '../../shared/components';
 import NotFoundView from './NotFoundView';
 import UnauthorizedView from './UnauthorizedView';
 import ForbiddenView from './ForbiddenView';
 import ServerErrorView from './ServerErrorView';
 import OfflineView from './OfflineView';
-import { Layers, FolderOpen, AlertCircle, RefreshCw } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
 import './System.css';
 
 export const SystemShowcaseView = ({ onNavigate, onOpenAuthModal }) => {
