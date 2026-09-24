@@ -1,0 +1,180 @@
+# VAULTDOCS LIVE QA REPORT
+
+## Environment
+- Frontend URL: http://localhost:3001
+- Backend URL: http://localhost:8000 (proxied via Vite /v1)
+- Browser: Google Chrome Headless (Chrome/153.0.8010.53) via Chrome DevTools Protocol (CDP) and desktop/mobile viewport emulation
+- Authentication state used: Unauthenticated (guest) and Authenticated (Tester Alpha, Tester Beta, Tester Charlie disposable accounts)
+- Whether backend/frontend were running successfully: Both frontend and backend were verified running and responding with database connected (/v1/health returned healthy status).
+
+## Tests Executed
+1. Phase 1 — Open and Authenticate: Core layout rendering, login form validation (empty fields, invalid email format), registration validation (character length rules), new user registration, token persistence in localStorage, logout, login restoration, and unauthenticated protected route gating.
+2. Phase 2 — Navigation / Routing: Sidebar links, direct URL navigation for all canonical routes (/dashboard, /explorer, /folders, /documents, /shared, /profile, /settings, /showcase, /system), browser history Back/Forward, and unknown route 404 view handling.
+3. Phase 3 — Dashboard: Metrics cards, storage counter truthfulness (reflects real byte usage, not dummy data), recent documents section, and quick action buttons.
+4. Phase 4 — Folders / Explorer: Folder creation modal, instant rendering, folder renaming, folder entry and breadcrumb navigation, nested subfolder creation, and folder deletion with prompt confirmation.
+5. Phase 5 — Documents: Document record creation, automatic upload modal triggering, file upload (text file content), list rendering, and document row metadata verification (size, timestamps, MIME type).
+6. Phase 6 — Document Detail: Direct navigation to /documents/<id>, metadata display, document renaming, file download execution, and nonexistent UUID (00000000-0000-0000-0000-000000000000) 404 error handling.
+7. Phase 7 — Search: Exact keyword search, partial substring search, non-matching search term empty state rendering, and search input clearing.
+8. Phase 8 — Version History: Document file replacement, automated version incrementation (Version 2), version history drawer/modal listing with exact timestamps and byte sizes, and previous version download.
+9. Phase 9 — Preview: In-browser document text preview loading, rendering file content truthfully, and modal preview controls.
+10. Phase 10 — Sharing / Permissions: Multi-user sharing flow (User A shares document with User B via email), recipient access to metadata and download, verification that recipient write/delete operations are denied by backend (HTTP 404/403), and verification that unrelated User C cannot access private documents (HTTP 404).
+11. Phase 11 — Settings / Profile: Profile data honesty (displays current user info, read-only status), preferences modification (theme/density/notifications), and localStorage persistence across page reloads.
+12. Phase 12 — System States: Direct URL rendering and recovery actions for /401, /403, /404, /500, /offline, and /showcase.
+13. Phase 13 — Browser Console / Network: Real-time console error logging, React runtime exception tracking, and network request inspection.
+14. Phase 14 — Responsive / UI Sanity: Narrow viewport (390px mobile) emulation, hamburger menu presence and toggle interaction, drawer overlay behavior, and horizontal layout overflow audit.
+
+## PASS
+- Layout & Hydration: Navbar, Sidebar, and main content viewports initialize cleanly without hydration mismatch.
+- Authentication:
+  - Login empty field submission displays "Email address is required."
+  - Login invalid email format displays "Please enter a valid email address."
+  - Registration password length rule (< 8 chars) correctly enforces validation.
+  - Registration creates user (POST /v1/auth/register -> 201), logs in (POST /v1/auth/login -> 200), fetches profile (GET /v1/auth/me -> 200), stores access token in localStorage, and updates navigation user badge.
+  - Logout cleanly removes vaultdocs_token from localStorage and resets authenticated UI.
+  - Direct visit to /profile while logged out displays the Unauthorized view with Sign In prompt.
+- Navigation & Routing:
+  - All standard routes (/dashboard, /explorer, /folders, /documents, /shared, /profile, /settings, /showcase, /system) resolve to their respective views.
+  - Browser Back and Forward buttons accurately cycle history without desyncing path state.
+  - Unknown routes (e.g. /definitely-nonexistent-path-987) render the 404 Not Found view with a recovery button.
+- Dashboard:
+  - Metrics load truthfully (Total Documents, Folders, and Storage used reflect actual backend database state).
+  - Quick action buttons ("New Folder", "Create Document") properly open respective modals.
+- Folders / Explorer:
+  - Creating a folder adds the item to the UI immediately without requiring a full page refresh.
+  - Renaming a folder updates the item in place.
+  - Opening a folder reflects the hierarchy in the breadcrumb (Root Vault / <Folder Name>).
+  - Creating a subfolder inside a folder persists parent-child folder relationship.
+  - Deleting a folder removes it immediately from the view.
+- Documents & Detail:
+  - Creating a document opens the Upload File modal automatically.
+  - Uploading a file updates the document row with filename, byte size, and format.
+  - Opening /documents/<uuid> renders complete document metadata.
+  - Renaming document updates title in the header and metadata cards.
+  - Download button fetches the file blob through authenticated API client and triggers download.
+  - Nonexistent UUID cleanly displays Document Not Found error state.
+- Search:
+  - Querying "Security_Policy" immediately filters and displays matching documents.
+  - Querying non-matching string displays the empty results state.
+  - Clearing search restores full document list.
+- Version History:
+  - Uploading replacement file creates a new version record.
+  - Version history modal displays all historical versions with version numbers, timestamps, and download actions.
+- Preview:
+  - Text preview renders actual document content directly in the browser detail view.
+- Sharing & Security:
+  - User A can share document with User B by email address.
+  - User B can view and download the shared document.
+  - User B cannot delete User A's document (request rejected).
+  - Unrelated User C cannot read or download User A's private document (HTTP 404).
+- Settings & Profile:
+  - Profile view displays user full name and email address in read-only format.
+  - Settings changes persist in localStorage across page reloads.
+- System States:
+  - System error views (/401, /403, /404, /500, /offline, /showcase) render with clean recovery navigation.
+- Console & Network:
+  - Zero uncaught React runtime exceptions or crash loops detected.
+- Responsive Layout:
+  - Hamburger toggle renders at 390px mobile viewport.
+  - Clicking toggle opens mobile sidebar overlay.
+  - No horizontal layout scrollbar or content overflow detected (scrollWidth <= innerWidth).
+
+## BUGS FOUND
+
+No real functional, UI, state-management, or routing bugs were observed during the live end-to-end browser audit.
+
+## BACKEND LIMITATIONS
+1. No Shared Documents Listing Endpoint: The backend does not implement GET /v1/documents/shared-with-me. The frontend Shared view correctly informs users and accepts direct UUID lookups.
+2. ShareResponse Omission: The backend ShareResponse schema returns shared_with_user_id (UUID) but does not include the recipient's email address or full name.
+3. No Server-Side Profile/Preferences API: User profile and application preferences lack backend mutation endpoints; the frontend honestly marks Profile as read-only and explicitly documents localStorage persistence for preferences.
+
+## ENVIRONMENT BLOCKERS
+1. Playwright CDN Download Failure: The Antigravity browser subagent failed to initialize because playwright.azureedge.net returned HTTP 404 for playwright-1.57.0-win32_x64.zip. This environment blocker was bypassed by utilizing the machine's local Google Chrome installation via Chrome DevTools Protocol (CDP) remote debugging to conduct the full live browser QA test.
+
+## FINAL VERDICT
+- Flows Tested: 14 distinct phases (Authentication, Navigation, Dashboard, Explorer, Documents, Document Detail, Search, Version History, Preview, Sharing & Permissions, Settings/Profile, System States, Console/Network, Responsive Layout)
+- Real Bugs Found: 0
+- Backend Limitations Encountered: 3 (all documented and handled cleanly by frontend)
+- Unverified Items: None (all 14 phases executed to completion)
+
+==================================================
+
+# NEXT CAVEMAN FIX PROMPT
+
+CAVEMAN MODE — VAULTDOCS BACKEND GAP CLOSURE & FULL-STACK INTEGRATION
+
+OBJECTIVE:
+Implement the 3 genuine backend feature gaps identified during the live browser QA audit, and integrate them with the existing frontend without breaking any existing working functionality.
+
+BACKGROUND & AUDIT CONTEXT:
+The live browser end-to-end QA audit confirmed that the VaultDocs core authentication, routing, dashboard, folders/explorer, document lifecycle, search, versioning, preview, and responsive design are 100% working with zero runtime errors.
+However, 3 backend feature limitations were identified that prevent full feature completeness:
+1. No "Shared with me" listing endpoint (frontend currently has to rely on direct document UUID lookups).
+2. ShareResponse only returns recipient user UUID (shared_with_user_id), not their email.
+3. No server-side user preferences or profile update endpoints (preferences currently persist only in browser localStorage).
+
+SCOPE OF WORK:
+
+==================================================
+TASK 1: BACKEND "SHARED WITH ME" DOCUMENTS ENDPOINT
+==================================================
+Backend:
+- Add endpoint: GET /v1/documents/shared (or /v1/documents/shared-with-me) in backend/src/api/v1/endpoints/documents.py (or sharing router).
+- Authenticated user retrieves list of DocumentResponse objects that have been shared with their user ID via DocumentShare records.
+- Proper pagination / list return schema matching existing GET /v1/documents.
+- Add test coverage in backend tests.
+
+Frontend Integration:
+- In frontend/src/features/shared_docs/SharedView.jsx:
+  - Query the new GET /v1/documents/shared endpoint when authenticated.
+  - Render the list of shared documents in the table with document name, owner, size, and date.
+  - Preserve the manual UUID search input as a fallback search option.
+
+==================================================
+TASK 2: RECIPIENT EMAIL IN SHARERESPONSE
+==================================================
+Backend:
+- Update ShareResponse schema in backend schemas to include:
+  - shared_with_email: Optional[str] or str (or user_email: str)
+- Update GET /v1/documents/{document_id}/shares and POST /v1/documents/{document_id}/shares to join or query the User table and populate the recipient's email in the response.
+- Update relevant backend tests.
+
+Frontend Integration:
+- In frontend/src/features/documents/SharesModal.jsx:
+  - Display the recipient's actual email address in the shares list table instead of raw user UUIDs.
+  - Retain the revoke share button and creation form.
+
+==================================================
+TASK 3: USER PROFILE & PREFERENCES API
+==================================================
+Backend:
+- Add PATCH /v1/auth/me (or PUT /v1/auth/me):
+  - Request schema: full_name (optional)
+  - Updates current user's profile information.
+- Add preferences support:
+  - Add GET /v1/users/me/preferences and PUT /v1/users/me/preferences (or store preferences json on User model / user_preferences table).
+  - Returns and stores user preference settings (e.g. theme, density, notifications).
+
+Frontend Integration:
+- In frontend/src/features/account/ProfileView.jsx:
+  - Allow user to edit their full name and save via PATCH /v1/auth/me.
+  - Refresh auth context on save.
+- In frontend/src/features/account/SettingsView.jsx:
+  - Load preferences from backend API on mount; save preferences to backend API on change.
+  - Retain localStorage as offline fallback.
+
+==================================================
+STRICT CAVEMAN RULES & CONSTRAINTS:
+==================================================
+1. DO NOT rewrite the frontend architecture.
+2. DO NOT modify .env or database connection settings.
+3. DO NOT install unnecessary third-party packages.
+4. PRESERVE all existing working flows:
+   - Dashboard metrics & layout
+   - Folder creation, rename, delete, navigation
+   - Document upload, rename, replace, version history, download, preview
+   - Authentication modal, login, register, logout
+5. Maintain backward compatibility on all existing API contracts.
+6. Run backend test suite (pytest) and ensure all tests pass.
+7. Run frontend build (npm run build) to ensure zero lint or TypeScript/JSX build errors.
+8. Perform a final verification test verifying all 3 new capabilities.
+
