@@ -136,7 +136,7 @@ async def test_non_owner_cannot_create_share(
     auth_headers_user_b: dict[str, str],
     user_b,
 ) -> None:
-    """Non-owner cannot share someone else's document (safe 404)."""
+    """Non-owner (outsider) cannot share someone else's document (safe 404)."""
     doc_id = await _create_document(client, auth_headers_user_a, "Private Doc")
 
     resp = await client.post(
@@ -172,7 +172,7 @@ async def test_non_owner_cannot_list_shares(
     auth_headers_user_b: dict[str, str],
     user_b,
 ) -> None:
-    """Non-owner cannot list shares for someone else's document (safe 404)."""
+    """Non-owner cannot list shares for someone else's document (clean 403)."""
     doc_id = await _create_document(client, auth_headers_user_a, "Hidden Shares Doc")
     await _share_document(client, auth_headers_user_a, doc_id, user_b.email)
 
@@ -180,7 +180,7 @@ async def test_non_owner_cannot_list_shares(
         f"/v1/documents/{doc_id}/shares",
         headers=auth_headers_user_b,
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 async def test_owner_can_revoke_share(
@@ -228,7 +228,7 @@ async def test_non_owner_cannot_revoke_share(
     auth_headers_user_b: dict[str, str],
     user_b,
 ) -> None:
-    """Recipient (or any non-owner) cannot revoke a share (safe 404)."""
+    """Recipient (or any non-owner) cannot revoke a share (clean 403)."""
     doc_id = await _create_document(client, auth_headers_user_a, "No Revoke Doc")
     share_id = await _share_document(client, auth_headers_user_a, doc_id, user_b.email)
 
@@ -236,7 +236,7 @@ async def test_non_owner_cannot_revoke_share(
         f"/v1/documents/{doc_id}/shares/{share_id}",
         headers=auth_headers_user_b,
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 async def test_share_endpoints_unauthenticated_rejected(
@@ -290,7 +290,7 @@ async def test_shared_user_cannot_update_document(
     auth_headers_user_b: dict[str, str],
     user_b,
 ) -> None:
-    """Shared recipient cannot rename or move the document."""
+    """Shared recipient cannot rename or move the document (clean 403)."""
     doc_id = await _create_document(client, auth_headers_user_a, "Locked Doc")
     await _share_document(client, auth_headers_user_a, doc_id, user_b.email)
 
@@ -299,14 +299,14 @@ async def test_shared_user_cannot_update_document(
         json={"name": "Hijacked Name"},
         headers=auth_headers_user_b,
     )
-    assert rename.status_code == 404
+    assert rename.status_code == 403
 
     move = await client.patch(
         f"/v1/documents/{doc_id}",
         json={"folder_id": None},
         headers=auth_headers_user_b,
     )
-    assert move.status_code == 404
+    assert move.status_code == 403
 
     # Name unchanged
     check = await client.get(f"/v1/documents/{doc_id}", headers=auth_headers_user_a)
@@ -327,7 +327,7 @@ async def test_shared_user_cannot_delete_document(
         f"/v1/documents/{doc_id}",
         headers=auth_headers_user_b,
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
     still_there = await client.get(f"/v1/documents/{doc_id}", headers=auth_headers_user_a)
     assert still_there.status_code == 200
@@ -348,14 +348,14 @@ async def test_shared_user_cannot_upload(
         files={"file": ("evil.txt", b"malicious", "text/plain")},
         headers=auth_headers_user_b,
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
     replace = await client.put(
         f"/v1/documents/{doc_id}/upload",
         files={"file": ("evil2.txt", b"malicious", "text/plain")},
         headers=auth_headers_user_b,
     )
-    assert replace.status_code == 404
+    assert replace.status_code == 403
 
 
 async def test_shared_user_cannot_manage_shares(
@@ -373,19 +373,19 @@ async def test_shared_user_cannot_manage_shares(
         json={"user_email": "someoneelse@example.com"},
         headers=auth_headers_user_b,
     )
-    assert create.status_code == 404
+    assert create.status_code == 403
 
     listing = await client.get(
         f"/v1/documents/{doc_id}/shares",
         headers=auth_headers_user_b,
     )
-    assert listing.status_code == 404
+    assert listing.status_code == 403
 
     revoke = await client.delete(
         f"/v1/documents/{doc_id}/shares/{share_id}",
         headers=auth_headers_user_b,
     )
-    assert revoke.status_code == 404
+    assert revoke.status_code == 403
 
 
 async def test_unshared_user_cannot_access_document(

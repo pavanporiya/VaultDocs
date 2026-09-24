@@ -402,14 +402,14 @@ async def test_shared_user_cannot_upload_or_replace(
         files={"file": ("hacked.txt", b"hacked content", "text/plain")},
         headers=auth_headers_user_b,
     )
-    assert upload.status_code == 404
+    assert upload.status_code == 403
 
     replace = await client.put(
         f"/v1/documents/{doc_id}/upload",
         files={"file": ("hacked2.txt", b"hacked content", "text/plain")},
         headers=auth_headers_user_b,
     )
-    assert replace.status_code == 404
+    assert replace.status_code == 403
 
     # No new version created
     vers = await client.get(f"/v1/documents/{doc_id}/versions", headers=auth_headers_user_a)
@@ -431,7 +431,7 @@ async def test_shared_user_cannot_delete_document_or_file(
     )
 
     delete = await client.delete(f"/v1/documents/{doc_id}", headers=auth_headers_user_b)
-    assert delete.status_code == 404
+    assert delete.status_code == 403
 
     for p in paths:
         assert p.exists()
@@ -454,7 +454,7 @@ async def test_shared_user_cannot_rename_or_move(
         json={"name": "Renamed By Shared"},
         headers=auth_headers_user_b,
     )
-    assert rename.status_code == 404
+    assert rename.status_code == 403
 
     check = await client.get(f"/v1/documents/{doc_id}", headers=auth_headers_user_a)
     assert check.json()["name"] == "No Meta Doc"
@@ -479,10 +479,10 @@ async def test_shared_user_cannot_manage_shares_on_file_doc(
         json={"user_email": "other@example.com"},
         headers=auth_headers_user_b,
     )
-    assert create.status_code == 404
+    assert create.status_code == 403
 
     shares = await client.get(f"/v1/documents/{doc_id}/shares", headers=auth_headers_user_b)
-    assert shares.status_code == 404
+    assert shares.status_code == 403
 
     for p in paths:
         p.unlink()

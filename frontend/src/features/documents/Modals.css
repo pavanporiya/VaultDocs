@@ -31,6 +31,76 @@
   font-weight: 500;
 }
 
+.vd-permission-tag--viewonly {
+  background-color: var(--color-warning-bg, rgba(250, 204, 21, 0.1));
+  border-color: var(--color-warning-border, rgba(250, 204, 21, 0.35));
+  color: var(--color-warning-text, #facc15);
+}
+
+/* Share row action group (change permission + revoke) */
+.vd-share-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+/* Owner permission selector (real sharing workflow) */
+.vd-share-permission-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vd-share-permission-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  background: none;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--color-text-main, #f8fafc);
+  transition: border-color var(--transition-fast, 0.15s), background-color var(--transition-fast, 0.15s);
+}
+
+.vd-share-permission-option:hover {
+  border-color: var(--color-primary, #38bdf8);
+}
+
+.vd-share-permission-option.is-selected {
+  border-color: var(--color-primary, #38bdf8);
+  background-color: var(--color-primary-light, rgba(56, 189, 248, 0.08));
+}
+
+.vd-share-permission-option:focus-visible {
+  outline: 2px solid var(--color-primary, #38bdf8);
+  outline-offset: 2px;
+}
+
+.vd-share-permission-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.vd-share-permission-head svg {
+  color: var(--color-primary, #38bdf8);
+}
+
+.vd-share-permission-desc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #94a3b8);
+  line-height: 1.45;
+}
+
 .vd-share-modal-body {
   display: flex;
   flex-direction: column;
@@ -78,6 +148,22 @@
   margin: 0 0 0.5rem 0;
 }
 
+/* Owner-only guard shown inside the modal for non-owners */
+.vd-share-owner-guard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 0.875rem;
+}
+
+.vd-share-owner-guard svg {
+  color: var(--color-warning-text, #facc15);
+}
+
 /* Version details drawer (inside VersionsModal) */
 .vd-version-link {
   display: inline-flex;
@@ -107,6 +193,20 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.25rem;
+}
+
+/* View-only indicator for gated version downloads */
+.vd-version-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted, #94a3b8);
+}
+
+.vd-version-locked svg {
+  color: var(--color-warning-text, #facc15);
 }
 
 .vd-version-drawer-overlay {

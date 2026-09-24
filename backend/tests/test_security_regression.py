@@ -103,10 +103,11 @@ async def test_shared_user_cannot_access_owners_other_documents(
     assert private_id not in [d["id"] for d in search.json()]
 
     # Recipient cannot revoke their own share to grief, nor share private doc
+    # (recipient of the shared doc -> clean 403 on share management).
     shares_seen = await client.get(
         f"/v1/documents/{shared_id}/shares", headers=auth_headers_user_b
     )
-    assert shares_seen.status_code == 404
+    assert shares_seen.status_code == 403
 
     from pathlib import Path
 

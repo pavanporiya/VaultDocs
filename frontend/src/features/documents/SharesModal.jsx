@@ -2,29 +2,44 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Input, Button, Table, Loader, ErrorState, useToast } from '../../shared/components';
 import apiClient from '../../shared/services/apiClient';
 import { formatDate } from '../../shared/utils/format';
-import { UserPlus, Trash2, ShieldCheck, Mail } from 'lucide-react';
+import { UserPlus, Trash2, ShieldCheck, Mail, Lock, Download, Eye } from 'lucide-react';
 import './Modals.css';
 
 /**
- * Share management modal (owner side).
+ * Share management modal (owner side) — the REAL document sharing workflow.
  *
  * Backend contract (verified):
  * - POST   /documents/{id}/shares            share with a registered email
+ *                                            + download_allowed permission
  * - GET    /documents/{id}/shares            list shares (owner only)
+ * - PATCH  /documents/{id}/shares/{share_id} change permission (download grant)
  * - DELETE /documents/{id}/shares/{share_id} revoke
  *
- * ShareResponse now includes shared_with_email; older responses without it
- * fall back to showing the recipient user ID.
+ * The owner explicitly chooses the recipient's permission:
+ * - "View only"        -> download_allowed=false (preview only, no downloads)
+ * - "View + Download"  -> download_allowed=true  (preview + file downloads)
+ *
+ * The chosen value is sent to the backend and persisted; no local-only state.
+ * Default is deliberately the SAFER option (View only).
+ *
+ * Owner-only: non-owners can never open this modal. The backend enforces
+ * the same rule with 403/404 regardless.
  */
 export const SharesModal = ({ isOpen, onClose, document }) => {
   const [shares, setShares] = useState([]);
   const [recipientEmail, setRecipientEmail] = useState('');
+  // Safe default: view-only. The owner must consciously grant downloads.
+  const [sharePermission, setSharePermission] = useState('view_only');
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [revokingId, setRevokingId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState('');
 
   const toast = useToast();
+
+  // Owner-only gate: legacy responses without flags keep owner flows working.
+  const isOwner = document ? document.is_owner !== false : false;
 
   const fetchShares = useCallback(async () => {
     if (!document?.id) return;
@@ -54,9 +69,16 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
     try {
       await apiClient.post(`/documents/${document.id}/shares`, {
         user_email: recipientEmail.trim(),
+        download_allowed: sharePermission === 'view_download',
       });
-      toast.success(`Document shared with ${recipientEmail.trim()}`);
+      toast.success(
+        sharePermission === 'view_download'
+          ? `Document shared with ${recipientEmail.trim()} (View + Download)`
+          : `Document shared with ${recipientEmail.trim()} (View Only)`
+      );
       setRecipientEmail('');
+      // Reset to the safe default for the next share.
+      setSharePermission('view_only');
       await fetchShares();
     } catch (err) {
       toast.error(err.message || 'Failed to share document.', 'Share Error');
@@ -75,6 +97,26 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
       toast.error(err.message || 'Failed to revoke access.', 'Error');
     } finally {
       setRevokingId(null);
+    }
+  };
+
+  const handleChangePermission = async (share, downloadAllowed) => {
+    if (share.download_allowed === downloadAllowed) return;
+    setUpdatingId(share.id);
+    try {
+      await apiClient.patch(`/documents/${document.id}/shares/${share.id}`, {
+        download_allowed: downloadAllowed,
+      });
+      toast.success(
+        downloadAllowed
+          ? 'Permission changed: View + Download'
+          : 'Permission changed: View Only'
+      );
+      await fetchShares();
+    } catch (err) {
+      toast.error(err.message || 'Failed to change permission.', 'Error');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -112,12 +154,24 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
     {
       header: 'Permission',
       key: 'permission',
-      render: () => (
-        <div className="vd-permission-tag">
-          <ShieldCheck size={14} />
-          <span>Read Only</span>
-        </div>
-      ),
+      render: (row) =>
+        row.download_allowed === false ? (
+          <div
+            className="vd-permission-tag vd-permission-tag--viewonly"
+            title="Preview only — downloads blocked"
+          >
+            <Lock size={14} />
+            <span>View Only</span>
+          </div>
+        ) : (
+          <div
+            className="vd-permission-tag"
+            title="Preview + file downloads allowed"
+          >
+            <Download size={14} />
+            <span>View + Download</span>
+          </div>
+        ),
     },
     {
       header: 'Shared Date',
@@ -129,19 +183,58 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
       key: 'action',
       align: 'right',
       render: (row) => (
-        <Button
-          variant="danger"
-          size="sm"
-          icon={Trash2}
-          loading={revokingId === row.id}
-          onClick={() => handleRevokeShare(row.id)}
-          aria-label="Revoke share access"
-        >
-          Revoke
-        </Button>
+        <div className="vd-share-row-actions">
+          {row.download_allowed === false ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Download}
+              loading={updatingId === row.id}
+              onClick={() => handleChangePermission(row, true)}
+              aria-label={`Allow downloads for ${row.shared_with_email || 'this recipient'}`}
+              title="Change permission to View + Download"
+            >
+              Allow Download
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Eye}
+              loading={updatingId === row.id}
+              onClick={() => handleChangePermission(row, false)}
+              aria-label={`Restrict to view-only for ${row.shared_with_email || 'this recipient'}`}
+              title="Change permission to View Only"
+            >
+              Make View Only
+            </Button>
+          )}
+          <Button
+            variant="danger"
+            size="sm"
+            icon={Trash2}
+            loading={revokingId === row.id}
+            onClick={() => handleRevokeShare(row.id)}
+            aria-label="Revoke share access"
+          >
+            Revoke
+          </Button>
+        </div>
       ),
     },
   ];
+
+  // Owner-only guard rendered after all hooks (rules-of-hooks safe).
+  if (isOpen && !isOwner) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Share Document" size="sm">
+        <div className="vd-share-owner-guard">
+          <Lock size={28} />
+          <p>Only the document owner can manage sharing.</p>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -173,9 +266,50 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
               Share
             </Button>
           </div>
-          <span className="vd-share-note">
-            Recipients receive read-only access to view and download this document.
-          </span>
+
+          {/* Permission selector — real value sent to the backend */}
+          <div
+            className="vd-share-permission-group"
+            role="radiogroup"
+            aria-label="Recipient permission"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={sharePermission === 'view_only'}
+              className={`vd-share-permission-option${
+                sharePermission === 'view_only' ? ' is-selected' : ''
+              }`}
+              onClick={() => setSharePermission('view_only')}
+            >
+              <span className="vd-share-permission-head">
+                <Lock size={15} />
+                <span>View only</span>
+              </span>
+              <span className="vd-share-permission-desc">
+                Can preview the document but cannot download, edit, delete, rename,
+                move, or share.
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={sharePermission === 'view_download'}
+              className={`vd-share-permission-option${
+                sharePermission === 'view_download' ? ' is-selected' : ''
+              }`}
+              onClick={() => setSharePermission('view_download')}
+            >
+              <span className="vd-share-permission-head">
+                <Download size={15} />
+                <span>View + Download</span>
+              </span>
+              <span className="vd-share-permission-desc">
+                Can preview and download the document, but cannot edit, delete,
+                rename, move, or share.
+              </span>
+            </button>
+          </div>
         </form>
 
         <div className="vd-share-divider" />

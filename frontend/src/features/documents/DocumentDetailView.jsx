@@ -30,8 +30,21 @@ import {
   ArrowLeft,
   Eye,
   FileWarning,
+  Lock,
 } from 'lucide-react';
 import './DocumentDetailView.css';
+
+/**
+ * Client-side fallback flags for older API responses without the
+ * authorization fields (owner-shaped defaults preserve owner flows).
+ */
+const resolvePermissions = (doc) => ({
+  isOwner: doc?.is_owner !== false,
+  canEdit: doc?.can_edit !== false,
+  canDownload: doc?.can_download !== false,
+  canShare: doc?.can_share !== false,
+  canDelete: doc?.can_delete !== false,
+});
 
 /**
  * Document Details — the central workspace for a single document.
@@ -150,7 +163,10 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
 
     (async () => {
       try {
-        const { blob } = await downloadFile(`/documents/${document.id}/download`);
+        // Dedicated inline preview stream: readable by the owner AND
+        // view-only ("seen") recipients. The attachment /download endpoint
+        // 403s for view-only shares, so preview must not use it.
+        const { blob } = await downloadFile(`/documents/${document.id}/preview`);
 
         // A newer load started meanwhile — discard this result.
         if (previewTokenRef.current !== token) return;
@@ -275,6 +291,19 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
   };
 
   // ------------------------------------------------------------------
+  // Authorization flags (server-authoritative, with legacy fallback)
+  // ------------------------------------------------------------------
+  const perms = resolvePermissions(document);
+  const isOwner = perms.isOwner;
+  const canEdit = perms.canEdit;
+  const canDownload = perms.canDownload;
+
+  const openSharesModal = () => {
+    if (!isOwner) return;
+    setIsSharesModalOpen(true);
+  };
+
+  // ------------------------------------------------------------------
   // Render helpers
   // ------------------------------------------------------------------
   const folderName = document?.folder_id
@@ -310,9 +339,11 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
             Preview unavailable for this file type
             {document.content_type ? ` (${document.content_type})` : ''}.
           </span>
-          <Button variant="outline" size="sm" icon={Download} onClick={handleDownload}>
-            Download Instead
-          </Button>
+          {canDownload && (
+            <Button variant="outline" size="sm" icon={Download} onClick={handleDownload}>
+              Download Instead
+            </Button>
+          )}
         </div>
       );
     }
@@ -342,9 +373,11 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
         <div className="vd-docdetail-preview-unavailable">
           <FileWarning size={32} />
           <span>{previewError || 'Preview unavailable.'}</span>
-          <Button variant="outline" size="sm" icon={Download} onClick={handleDownload}>
-            Download Instead
-          </Button>
+          {canDownload && (
+            <Button variant="outline" size="sm" icon={Download} onClick={handleDownload}>
+              Download Instead
+            </Button>
+          )}
         </div>
       );
     }
@@ -454,25 +487,39 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
         }
         actions={
           <div className="vd-docdetail-actions">
-            <Button
-              variant="outline"
-              icon={Download}
-              loading={downloading}
-              onClick={handleDownload}
-              disabled={!hasStoredFile(document)}
-            >
-              Download
-            </Button>
-            <Button
-              variant="primary"
-              icon={Upload}
-              onClick={() => {
-                setUploadMode(hasStoredFile(document) ? 'PUT' : 'POST');
-                setIsUploadModalOpen(true);
-              }}
-            >
-              {hasStoredFile(document) ? 'Upload / Replace' : 'Upload File'}
-            </Button>
+            {canDownload ? (
+              <Button
+                variant="outline"
+                icon={Download}
+                loading={downloading}
+                onClick={handleDownload}
+                disabled={!hasStoredFile(document)}
+              >
+                Download
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                icon={Download}
+                disabled
+                title="Download disabled: View-only access"
+                aria-label="Download disabled: View-only access"
+              >
+                Download
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                variant="primary"
+                icon={Upload}
+                onClick={() => {
+                  setUploadMode(hasStoredFile(document) ? 'PUT' : 'POST');
+                  setIsUploadModalOpen(true);
+                }}
+              >
+                {hasStoredFile(document) ? 'Upload / Replace' : 'Upload File'}
+              </Button>
+            )}
           </div>
         }
       />
@@ -480,7 +527,25 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
       <div className="vd-docdetail-grid">
         {/* Metadata */}
         <Card title="Document Information" elevation="sm">
+          {!isOwner && (
+            <div className="vd-docdetail-readonly-banner" role="status">
+              <Lock size={16} />
+              <span>You have read-only access to this document.</span>
+            </div>
+          )}
           <div className="vd-docdetail-info-list">
+            <div className="vd-docdetail-info-row">
+              <span className="vd-docdetail-info-label">Access</span>
+              <span className="vd-docdetail-info-value">
+                {isOwner ? (
+                  <span className="vd-badge vd-badge-owner">Owner</span>
+                ) : canDownload ? (
+                  <span className="vd-badge vd-badge-readonly">View + Download</span>
+                ) : (
+                  <span className="vd-badge vd-badge-readonly">View Only Access</span>
+                )}
+              </span>
+            </div>
             <div className="vd-docdetail-info-row">
               <span className="vd-docdetail-info-label">Name</span>
               <span className="vd-docdetail-info-value">
@@ -525,12 +590,16 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
           <div className="vd-docdetail-manage">
             <h4 className="vd-docdetail-manage-title">Manage</h4>
             <div className="vd-docdetail-manage-actions">
-              <Button variant="ghost" size="sm" icon={Edit2} onClick={openRename}>
-                Rename
-              </Button>
-              <Button variant="ghost" size="sm" icon={FolderInput} onClick={openMove}>
-                Move
-              </Button>
+              {isOwner && (
+                <>
+                  <Button variant="ghost" size="sm" icon={Edit2} onClick={openRename}>
+                    Rename
+                  </Button>
+                  <Button variant="ghost" size="sm" icon={FolderInput} onClick={openMove}>
+                    Move
+                  </Button>
+                </>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -539,21 +608,30 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
               >
                 Version History{versionCount !== null ? ` (${versionCount})` : ''}
               </Button>
-              <Button variant="ghost" size="sm" icon={Share2} onClick={() => setIsSharesModalOpen(true)}>
-                Share
-              </Button>
-              <Button variant="ghost" size="sm" icon={RefreshCw} onClick={fetchDocument}>
-                Refresh
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="vd-docdetail-danger"
-                icon={Trash2}
-                onClick={() => setIsDeleteModalOpen(true)}
-              >
-                Delete
-              </Button>
+              {isOwner && (
+                <>
+                  <Button variant="ghost" size="sm" icon={Share2} onClick={openSharesModal}>
+                    Share
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={fetchDocument}
+                  >
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="vd-docdetail-danger"
+                    icon={Trash2}
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </Card>
@@ -564,23 +642,33 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
           subtitle="Safe in-browser preview for supported formats"
           elevation="sm"
           headerAction={
-            <Button variant="ghost" size="sm" icon={Eye} disabled={!hasStoredFile(document)} onClick={handleDownload}>
-              Download
-            </Button>
+            canDownload && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Eye}
+                disabled={!hasStoredFile(document)}
+                onClick={handleDownload}
+              >
+                Download
+              </Button>
+            )
           }
         >
           <div className="vd-docdetail-preview">{renderPreview()}</div>
         </Card>
       </div>
 
-      {/* Upload / Replace */}
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        document={document}
-        mode={uploadMode}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUploaded={handleUploaded}
-      />
+      {/* Upload / Replace (owners only) */}
+      {canEdit && (
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          document={document}
+          mode={uploadMode}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUploaded={handleUploaded}
+        />
+      )}
 
       {/* Version history (enhanced modal with version details) */}
       <VersionsModal
@@ -589,12 +677,14 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
         document={document}
       />
 
-      {/* Sharing */}
-      <SharesModal
-        isOpen={isSharesModalOpen}
-        onClose={() => setIsSharesModalOpen(false)}
-        document={document}
-      />
+      {/* Sharing (owner only) */}
+      {isOwner && (
+        <SharesModal
+          isOpen={isSharesModalOpen}
+          onClose={() => setIsSharesModalOpen(false)}
+          document={document}
+        />
+      )}
 
       {/* Rename */}
       <Modal

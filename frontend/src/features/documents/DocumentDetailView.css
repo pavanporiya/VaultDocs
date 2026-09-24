@@ -23,6 +23,45 @@
   }
 }
 
+/* Read-only access banner (non-owners) */
+.vd-docdetail-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  margin-bottom: 0.875rem;
+  background-color: var(--color-warning-bg, rgba(250, 204, 21, 0.1));
+  border: 1px solid var(--color-warning-border, rgba(250, 204, 21, 0.35));
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-warning-text, #facc15);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* Access badges */
+.vd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.vd-badge-owner {
+  background-color: var(--color-primary-light, rgba(56, 189, 248, 0.12));
+  border: 1px solid var(--color-primary-border, rgba(56, 189, 248, 0.35));
+  color: var(--color-primary, #38bdf8);
+}
+
+.vd-badge-readonly {
+  background-color: var(--color-warning-bg, rgba(250, 204, 21, 0.1));
+  border: 1px solid var(--color-warning-border, rgba(250, 204, 21, 0.35));
+  color: var(--color-warning-text, #facc15);
+}
+
 /* Info rows */
 .vd-docdetail-info-list {
   display: flex;

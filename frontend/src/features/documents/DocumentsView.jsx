@@ -94,7 +94,20 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
         : '/documents';
       // Fetch docs first; folders only matter for the create modal / folder column.
       const docsData = await apiClient.get(endpoint);
-      setDocuments(docsData || []);
+      // Defense-in-depth: never render owner-only quick actions for rows the
+      // API marks as non-owner (e.g. if shared docs ever appear here).
+      setDocuments(
+        (docsData || []).map((d) =>
+          d.is_owner === false
+            ? {
+                ...d,
+                can_edit: d.can_edit ?? false,
+                can_share: d.can_share ?? false,
+                can_delete: d.can_delete ?? false,
+              }
+            : d
+        )
+      );
     } catch (err) {
       setError(err.message || 'Failed to load documents.');
     } finally {
@@ -162,6 +175,10 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
 
   // Centralized authenticated download via the shared apiClient helper.
   const handleDownloadCurrentFile = async (doc) => {
+    if (doc.can_download === false) {
+      toast.error('Download disabled: View-only access.', 'Download Error');
+      return;
+    }
     setDownloadingId(doc.id);
     try {
       const { blob, filename } = await downloadFile(`/documents/${doc.id}/download`);
@@ -250,22 +267,33 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
             variant="ghost"
             size="sm"
             icon={Download}
-            title={hasStoredFile(row) ? 'Download File' : 'No file uploaded yet'}
-            disabled={!hasStoredFile(row) || downloadingId === row.id}
+            title={
+              row.can_download === false
+                ? 'Download disabled: View-only access'
+                : hasStoredFile(row)
+                  ? 'Download File'
+                  : 'No file uploaded yet'
+            }
+            disabled={row.can_download === false || !hasStoredFile(row) || downloadingId === row.id}
             loading={downloadingId === row.id}
             onClick={() => handleDownloadCurrentFile(row)}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Upload}
-            title={hasStoredFile(row) ? 'Replace File (New Version)' : 'Upload File'}
-            onClick={() => {
-              setSelectedDocForUpload(row);
-              setUploadMode(hasStoredFile(row) ? 'PUT' : 'POST');
-              setIsUploadModalOpen(true);
-            }}
-          />
+          {/* Owner-only actions: hidden for viewer/editor rows. This list is
+              owner-scoped from the backend, so flags are normally absent
+              (owner-shaped) — the guards are defense-in-depth for shared rows. */}
+          {row.can_edit !== false && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Upload}
+              title={hasStoredFile(row) ? 'Replace File (New Version)' : 'Upload File'}
+              onClick={() => {
+                setSelectedDocForUpload(row);
+                setUploadMode(hasStoredFile(row) ? 'PUT' : 'POST');
+                setIsUploadModalOpen(true);
+              }}
+            />
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -277,23 +305,27 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
               setIsVersionsModalOpen(true);
             }}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Share2}
-            title="Share Document"
-            onClick={() => {
-              setActiveDocForModal(row);
-              setIsSharesModalOpen(true);
-            }}
-          />
-          <Button
-            variant="danger"
-            size="sm"
-            icon={Trash2}
-            title="Delete Document"
-            onClick={() => handleDeleteDocument(row)}
-          />
+          {row.can_share !== false && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Share2}
+              title="Share Document"
+              onClick={() => {
+                setActiveDocForModal(row);
+                setIsSharesModalOpen(true);
+              }}
+            />
+          )}
+          {row.can_delete !== false && (
+            <Button
+              variant="danger"
+              size="sm"
+              icon={Trash2}
+              title="Delete Document"
+              onClick={() => handleDeleteDocument(row)}
+            />
+          )}
         </div>
       ),
     },

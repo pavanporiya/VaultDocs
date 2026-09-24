@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Table, Button, Loader, ErrorState, useToast } from '../../shared/components';
 import apiClient, { downloadFile, saveBlob } from '../../shared/services/apiClient';
 import { formatFileSize, formatDate } from '../../shared/utils/format';
-import { Download, History, FileText, Info, X } from 'lucide-react';
+import { Download, History, FileText, Info, X, Lock } from 'lucide-react';
 import './Modals.css';
 
 /**
@@ -12,6 +12,12 @@ import './Modals.css';
  * - GET /documents/{id}/versions                list
  * - GET /documents/{id}/versions/{version_id}   details for the drawer
  * - GET /documents/{id}/versions/{version_id}/download  file download
+ *
+ * Permission gating (server-authoritative flags on the document record):
+ * - can_download === false  -> "Download Version" buttons are hidden and the
+ *   handler refuses to fire (view-only / "seen" shares; backend enforces 403).
+ * - There are no rollback/upload controls here by design: new versions are
+ *   created only via the owner-only Upload / Replace flow.
  */
 export const VersionsModal = ({ isOpen, onClose, document }) => {
   const [versions, setVersions] = useState([]);
@@ -25,6 +31,10 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
   const [detailsError, setDetailsError] = useState('');
 
   const toast = useToast();
+
+  // Legacy responses without flags default to owner-shaped permissions so
+  // existing owner flows are never broken.
+  const canDownload = document?.can_download !== false;
 
   const fetchVersions = useCallback(async () => {
     if (!document?.id) return;
@@ -48,6 +58,10 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
   }, [isOpen, document?.id, fetchVersions]);
 
   const handleDownloadVersion = async (version) => {
+    if (!canDownload) {
+      toast.error('Download disabled: View-only access.', 'Permission Denied');
+      return;
+    }
     setDownloadingId(version.id);
     try {
       const { blob, filename } = await downloadFile(
@@ -132,16 +146,23 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
             aria-label={`View details for version ${row.version_number}`}
             onClick={() => openVersionDetails(row)}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Download}
-            loading={downloadingId === row.id}
-            onClick={() => handleDownloadVersion(row)}
-            aria-label={`Download version ${row.version_number}`}
-          >
-            Download
-          </Button>
+          {canDownload ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Download}
+              loading={downloadingId === row.id}
+              onClick={() => handleDownloadVersion(row)}
+              aria-label={`Download version ${row.version_number}`}
+            >
+              Download
+            </Button>
+          ) : (
+            <span className="vd-version-locked" title="Download disabled: View-only access">
+              <Lock size={14} />
+              Locked
+            </span>
+          )}
         </div>
       ),
     },
@@ -244,15 +265,22 @@ export const VersionsModal = ({ isOpen, onClose, document }) => {
                   </span>
                 </div>
                 <div className="vd-version-drawer-footer">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={Download}
-                    loading={downloadingId === detailsVersion.id}
-                    onClick={() => handleDownloadVersion(detailsVersion)}
-                  >
-                    Download This Version
-                  </Button>
+                  {canDownload ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={Download}
+                      loading={downloadingId === detailsVersion.id}
+                      onClick={() => handleDownloadVersion(detailsVersion)}
+                    >
+                      Download This Version
+                    </Button>
+                  ) : (
+                    <span className="vd-version-locked" title="Download disabled: View-only access">
+                      <Lock size={14} />
+                      Download disabled: View-only access
+                    </span>
+                  )}
                 </div>
               </div>
             )}

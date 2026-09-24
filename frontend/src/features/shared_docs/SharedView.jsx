@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../../shared/context/AuthContext';
 import apiClient, { downloadFile, saveBlob } from '../../shared/services/apiClient';
 import { formatFileSize, formatDate, hasStoredFile, getDocumentDisplayName } from '../../shared/utils/format';
-import { Download, ShieldCheck, Search, FileText, Lock, RefreshCw } from 'lucide-react';
+import { Download, ShieldCheck, Search, FileText, Lock, RefreshCw, Eye } from 'lucide-react';
 import './SharedView.css';
 
 /**
@@ -71,9 +71,11 @@ export const SharedView = ({ onOpenAuthModal, onNavigate }) => {
       toast.success(`Accessed shared document "${docData.name}"`);
     } catch (err) {
       const message =
-        err?.status === 404
-          ? 'Document not found — the ID is invalid, the document was deleted, or it is not shared with your account.'
-          : err.message || 'Shared document lookup failed.';
+        err?.status === 403
+          ? 'You have read-only access to this document — download is disabled.'
+          : err?.status === 404
+            ? 'Document not found — the ID is invalid, the document was deleted, or it is not shared with your account.'
+            : err.message || 'Shared document lookup failed.';
       toast.error(message, 'Shared Access');
     } finally {
       setLookupLoading(false);
@@ -81,6 +83,10 @@ export const SharedView = ({ onOpenAuthModal, onNavigate }) => {
   };
 
   const handleDownloadSharedFile = async (doc) => {
+    if (doc.can_download === false) {
+      toast.error('Download disabled: View-only access.', 'Shared Access');
+      return;
+    }
     setDownloadingId(doc.id);
     try {
       const { blob, filename } = await downloadFile(`/documents/${doc.id}/download`);
@@ -138,12 +144,24 @@ export const SharedView = ({ onOpenAuthModal, onNavigate }) => {
     {
       header: 'Access Level',
       key: 'access',
-      render: () => (
-        <div className="vd-readonly-badge">
-          <Lock size={12} />
-          <span>Read Only</span>
-        </div>
-      ),
+      render: (row) =>
+        row.can_download === false ? (
+          <div
+            className="vd-readonly-badge"
+            title="View-only access: preview allowed, download disabled"
+          >
+            <Lock size={12} />
+            <span>View Only</span>
+          </div>
+        ) : (
+          <div
+            className="vd-readonly-badge vd-readonly-badge--download"
+            title="View + Download access: preview and download allowed"
+          >
+            <Download size={12} />
+            <span>View + Download</span>
+          </div>
+        ),
     },
     {
       header: 'Size',
@@ -159,18 +177,31 @@ export const SharedView = ({ onOpenAuthModal, onNavigate }) => {
       header: 'Action',
       key: 'action',
       align: 'right',
-      render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={Download}
-          disabled={!hasStoredFile(row) || downloadingId === row.id}
-          loading={downloadingId === row.id}
-          onClick={() => handleDownloadSharedFile(row)}
-        >
-          Download
-        </Button>
-      ),
+      render: (row) =>
+        // View-only ("seen") shares get Preview instead of raw Download;
+        // the backend blocks download with 403 for these shares.
+        row.can_download === false ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Eye}
+            title="Preview document (view-only access)"
+            onClick={() => openDocumentDetail(row)}
+          >
+            Preview
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Download}
+            disabled={!hasStoredFile(row) || downloadingId === row.id}
+            loading={downloadingId === row.id}
+            onClick={() => handleDownloadSharedFile(row)}
+          >
+            Download
+          </Button>
+        ),
     },
   ];
 

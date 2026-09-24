@@ -87,5 +87,5 @@ class DocumentVersion(Base):
     # Relationships
     document: Mapped[Document] = relationship(
         "Document",
-        backref="versions",
+        back_populates="versions",
     )
