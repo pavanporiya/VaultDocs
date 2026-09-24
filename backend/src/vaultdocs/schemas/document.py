@@ -3,9 +3,12 @@ Document request and response schemas.
 """
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+DocumentPermission = Literal["owner", "viewer"]
 
 
 class DocumentCreate(BaseModel):
@@ -61,6 +64,69 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # ------------------------------------------------------------------
+    # Computed authorization metadata for the requesting user.
+    # Defaults describe the OWNER (listing endpoints are owner-scoped, so
+    # every row returned there is the requester's own document). Recipient
+    # endpoints construct responses with viewer flags explicitly.
+    # ------------------------------------------------------------------
+    is_owner: bool = Field(
+        default=True,
+        description="True if the requesting user owns this document.",
+    )
+    permission: DocumentPermission = Field(
+        default="owner",
+        description='Effective permission of the requesting user: "owner" | "viewer".',
+    )
+    can_edit: bool = Field(
+        default=True,
+        description="True if the user may upload/replace files or rename/move the document.",
+    )
+    can_download: bool = Field(
+        default=True,
+        description="False when the user has view-only (seen) access without download rights.",
+    )
+    can_share: bool = Field(
+        default=True,
+        description="True only for the document owner.",
+    )
+    can_delete: bool = Field(
+        default=True,
+        description="True only for the document owner.",
+    )
+
+
+def owner_permission_flags() -> dict[str, bool | str]:
+    """
+    Flag set for the document owner (default field values, explicit for clarity).
+    """
+    return {
+        "is_owner": True,
+        "permission": "owner",
+        "can_edit": True,
+        "can_download": True,
+        "can_share": True,
+        "can_delete": True,
+    }
+
+
+def viewer_permission_flags(*, can_download: bool) -> dict[str, bool | str]:
+    """
+    Flag set for a read-only share recipient.
+
+    VaultDocs shares are strictly "seen" (view/preview only): the recipient
+    can read metadata and preview in-browser, but can never edit, share, or
+    delete. Downloading is governed by the share's download grant.
+    """
+    return {
+        "is_owner": False,
+        "permission": "viewer",
+        "can_edit": False,
+        "can_download": can_download,
+        "can_share": False,
+        "can_delete": False,
+    }
+
 
 class SharedDocumentResponse(DocumentResponse):
     """
@@ -82,6 +148,31 @@ class SharedDocumentResponse(DocumentResponse):
     shared_at: datetime | None = Field(
         default=None,
         description="Timestamp at which the share was created.",
+    )
+
+    is_owner: bool = Field(
+        default=False,
+        description="Recipients are never the owner.",
+    )
+    permission: DocumentPermission = Field(
+        default="viewer",
+        description='Recipients always have read-only ("seen") permission.',
+    )
+    can_edit: bool = Field(
+        default=False,
+        description="Recipients can never edit shared documents.",
+    )
+    can_download: bool = Field(
+        default=True,
+        description="True unless the share is strictly view-only (seen) without download.",
+    )
+    can_share: bool = Field(
+        default=False,
+        description="Recipients can never re-share.",
+    )
+    can_delete: bool = Field(
+        default=False,
+        description="Recipients can never delete shared documents.",
     )
 
 

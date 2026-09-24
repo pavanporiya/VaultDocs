@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, UniqueConstraint, Uuid
+from sqlalchemy import Boolean, ForeignKey, UniqueConstraint, Uuid, text
 from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from vaultdocs.db.base import Base
@@ -53,6 +53,17 @@ class DocumentShare(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+
+    # False = strictly view-only ("seen"): safe in-browser preview allowed,
+    # raw file downloads blocked. True = preview + download.
+    # Server_default covers rows created before this column existed and
+    # preserves the historical behavior where recipients could download.
+    download_allowed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
     )
 
     # Relationships

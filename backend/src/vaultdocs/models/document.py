@@ -14,6 +14,7 @@ from vaultdocs.db.base import Base
 from vaultdocs.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from vaultdocs.models.document_version import DocumentVersion
     from vaultdocs.models.folder import Folder
     from vaultdocs.models.user import User
 
@@ -79,4 +80,14 @@ class Document(Base, TimestampMixin):
     folder: Mapped[Folder | None] = relationship(
         "Folder",
         backref="documents",
+    )
+
+    # Versions are deleted with the document: passive_deletes lets the DB-level
+    # ON DELETE CASCADE remove rows instead of ORM NULL-updates (which would
+    # violate document_versions.document_id NOT NULL on delete).
+    versions: Mapped[list[DocumentVersion]] = relationship(
+        "DocumentVersion",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

@@ -17,6 +17,7 @@ from vaultdocs.schemas.folder import (
 from vaultdocs.schemas.share import (
     ShareCreate,
     ShareResponse,
+    ShareUpdate,
 )
 from vaultdocs.schemas.user import (
     UserPreferencesResponse,
@@ -33,6 +34,7 @@ __all__ = [
     "FolderUpdate",
     "ShareCreate",
     "ShareResponse",
+    "ShareUpdate",
     "SharedDocumentResponse",
     "UserPreferencesResponse",
     "UserUpdate",

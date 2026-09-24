@@ -67,6 +67,9 @@ async def create_share(
     """
     Create a read-only share of a document with another registered user.
 
+    The share grants view-only ("seen") access; download rights are granted
+    separately via ``share_data.download_allowed``.
+
     Raises ValueError for: self-share, unknown recipient, duplicate share.
     """
     if document.owner_id != owner_id:
@@ -97,6 +100,7 @@ async def create_share(
     share = DocumentShare(
         document_id=document.id,
         shared_with_user_id=recipient.id,
+        download_allowed=share_data.download_allowed,
     )
     db.add(share)
     await db.commit()
@@ -120,6 +124,31 @@ async def revoke_share(
 
     await db.delete(share)
     await db.commit()
+
+
+async def update_share_permission(
+    db: AsyncSession,
+    document: Document,
+    owner_id: UUID,
+    share: DocumentShare,
+    download_allowed: bool,
+) -> DocumentShare:
+    """
+    Change an existing share's download grant. Owner only.
+
+    True = view + download; False = strictly view-only ("seen").
+    Takes effect immediately for the recipient.
+
+    Raises PermissionError for non-owner.
+    """
+    if document.owner_id != owner_id:
+        raise PermissionError("Document not found.")
+
+    share.download_allowed = download_allowed
+    db.add(share)
+    await db.commit()
+    await db.refresh(share)
+    return share
 
 
 async def get_emails_for_users(
@@ -157,3 +186,52 @@ async def user_can_access_document(
         ),
     )
     return result.scalar_one_or_none() is not None
+
+
+async def user_can_download_document(
+    db: AsyncSession,
+    document: Document,
+    user: User,
+) -> bool:
+    """
+    Centralized download-permission check.
+
+    The owner may always download. A share recipient may download only when
+    their share grants it; a strictly view-only ("seen") share allows safe
+    in-browser preview but blocks file-attachment downloads.
+    """
+    if document.owner_id == user.id:
+        return True
+
+    result = await db.execute(
+        select(DocumentShare.download_allowed).where(
+            DocumentShare.document_id == document.id,
+            DocumentShare.shared_with_user_id == user.id,
+        ),
+    )
+    allowed = result.scalar_one_or_none()
+    return bool(allowed)
+
+
+async def get_user_download_permission(
+    db: AsyncSession,
+    document: Document,
+    user: User,
+) -> bool:
+    """
+    Return the requesting user's download right without access assumptions.
+
+    Owners always get True. For any other user the share's download grant is
+    returned (False when no share row exists — callers gate access first).
+    """
+    if document.owner_id == user.id:
+        return True
+
+    result = await db.execute(
+        select(DocumentShare.download_allowed).where(
+            DocumentShare.document_id == document.id,
+            DocumentShare.shared_with_user_id == user.id,
+        ),
+    )
+    allowed = result.scalar_one_or_none()
+    return bool(allowed)

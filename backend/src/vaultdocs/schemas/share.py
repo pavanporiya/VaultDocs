@@ -19,6 +19,28 @@ class ShareCreate(BaseModel):
         description="Email of the user to share the document with.",
     )
 
+    download_allowed: bool = Field(
+        default=True,
+        description=(
+            "Grant file download rights to the recipient. False creates a "
+            'strictly view-only ("seen") share: safe in-browser preview only, '
+            "no raw file downloads."
+        ),
+    )
+
+
+class ShareUpdate(BaseModel):
+    """
+    Request body for updating an existing share's permission.
+    """
+
+    download_allowed: bool = Field(
+        description=(
+            "New download grant for the share. False = strictly view-only "
+            '("seen"): safe in-browser preview only, no downloads.'
+        ),
+    )
+
 
 class ShareResponse(BaseModel):
     """
@@ -33,6 +55,13 @@ class ShareResponse(BaseModel):
     shared_with_email: str | None = Field(
         default=None,
         description="Email of the recipient user the document is shared with.",
+    )
+    download_allowed: bool = Field(
+        default=True,
+        description=(
+            "Whether the recipient may download files. False = strictly "
+            'view-only ("seen") share: safe preview only.'
+        ),
     )
     created_at: datetime
     updated_at: datetime
