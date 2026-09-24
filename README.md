@@ -21,51 +21,69 @@ individual documents.
 | Migrations     | Alembic                           |
 | Validation     | Pydantic v2                       |
 | Package Mgr    | uv                                |
+| Frontend       | React 19 + Vite (JavaScript)      |
 | Containerization | Docker / Docker Compose         |
 | CI/CD          | GitHub Actions                    |
 | Testing        | pytest                            |
 | Linting        | Ruff                              |
 | Type Checking  | mypy (strict)                     |
 
-## Getting Started
+## Quick Start
 
-> **Prerequisites:** Python 3.13+, Docker, Docker Compose, [uv](https://docs.astral.sh/uv/)
+> **Prerequisites:** Python 3.13+, Node.js 18+, [uv](https://docs.astral.sh/uv/), Docker
 
 ```bash
-# Clone the repository
-git clone https://github.com/<org>/VaultDocs.git
+# Clone + configure (once)
+git clone https://github.com/pavanporiya/VaultDocs.git
 cd VaultDocs
-
-# Copy environment variables
 cp .env.example .env
-
-# Install dependencies
-uv sync --all-extras
-
-# Start PostgreSQL and the app
-docker compose up -d
-
-# Run migrations
-uv run alembic upgrade head
-
-# Start the development server (hot reload)
-uv run uvicorn vaultdocs.main:app --reload
 ```
 
-The API is then available at http://localhost:8000
+### 1. Environment setup — Docker
 
+```bash
+docker compose up -d
+```
+
+Starts PostgreSQL and the backend. Database only: `docker compose up -d db`.
+
+### 2. Backend
+
+```bash
+uv sync --all-extras
+uv run alembic upgrade head
+uv run uvicorn vaultdocs.main:app --reload --port 8000
+```
+
+- API: http://localhost:8000
 - Swagger UI: http://localhost:8000/docs
 - Health check: http://localhost:8000/v1/health
 - Browser demo UI (register/login/upload/download/share): http://localhost:8000/demo
 
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- App: http://localhost:3000 (Vite proxies `/v1` requests to the backend automatically)
+
 ## Quality Checks
 
 ```bash
+# Backend
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy backend/src
 uv run pytest
 uv run alembic check
+
+# Frontend
+cd frontend
+npm run lint
+npm run build
 ```
 
 ## Testing
@@ -93,6 +111,8 @@ VaultDocs/
 │   └── tests/                # pytest integration tests
 ├── alembic/                  # Alembic migrations (upgrade head from repo root)
 ├── docs/                     # Project documentation
+├── frontend/                 # React + Vite frontend (`npm run dev`)
+├── scripts/                  # Live E2E verification harnesses
 ├── .github/                  # GitHub Actions workflows
 ├── docker-compose.yml        # App + PostgreSQL for local development
 ├── backend/Dockerfile        # Backend image (multi-stage, non-root)
