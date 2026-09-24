@@ -54,17 +54,18 @@
   height: 36px;
   border-radius: var(--radius-md);
   background-color: var(--color-primary);
+  background-image: linear-gradient(135deg, #3b82f6, var(--color-primary-hover));
   color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  box-shadow: var(--shadow-primary);
 }
 
 .vd-navbar__brand-name {
   font-size: var(--font-size-lg);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--color-text-main);
 }
 
@@ -102,6 +103,26 @@
   border-radius: var(--radius-full);
   background-color: var(--color-bg);
   border: 1px solid var(--color-border);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vd-navbar__account-placeholder:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-xs);
+}
+
+.vd-navbar__user-clickable {
+  border-radius: var(--radius-full);
+  transition: opacity var(--transition-fast);
+}
+
+.vd-navbar__user-clickable:hover {
+  opacity: 0.85;
+}
+
+.vd-navbar__user-clickable:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .vd-navbar__avatar {
@@ -132,16 +153,28 @@
   color: var(--color-text-subtle);
 }
 
+@media (max-width: 1024px) {
+  .vd-navbar__center {
+    max-width: 380px;
+  }
+}
+
 @media (max-width: 768px) {
   .vd-navbar {
     padding: 0 var(--spacing-md);
   }
 
+  .vd-navbar__user-info {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
   .vd-navbar__center {
     display: none;
   }
 
-  .vd-navbar__user-info {
+  .vd-navbar__badge {
     display: none;
   }
 }

@@ -1,3 +1,39 @@
+/* Profile full-name edit form */
+.vd-profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vd-profile-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Settings scope notice (local-only preferences) */
+.vd-settings-scope-card {
+  border-left: 3px solid var(--color-info, #38bdf8);
+}
+
+.vd-settings-scope {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.vd-settings-scope-icon {
+  color: var(--color-info, #38bdf8);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vd-settings-scope-text {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--color-text-main, #f8fafc);
+}
+
 /* Account (Profile & Settings) Styling */
 .vd-account-view {
   display: flex;

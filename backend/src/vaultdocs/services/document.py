@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from vaultdocs.core.settings import settings
 from vaultdocs.models.document import Document
+from vaultdocs.models.document_share import DocumentShare
 from vaultdocs.models.document_version import DocumentVersion
 from vaultdocs.models.folder import Folder
+from vaultdocs.models.user import User
 from vaultdocs.schemas.document import DocumentCreate, DocumentUpdate
 from vaultdocs.services.folder import get_folder_by_id
 
@@ -280,6 +282,26 @@ async def upload_document_file(
         raise
 
     return document
+
+
+async def list_documents_shared_with_user(
+    db: AsyncSession,
+    user_id: UUID,
+) -> list[tuple[Document, User, DocumentShare]]:
+    """
+    List all documents shared with a specific user (read-only recipients).
+
+    Returns (document, owner, share) tuples ordered by share creation,
+    newest first.
+    """
+    result = await db.execute(
+        select(Document, User, DocumentShare)
+        .join(DocumentShare, DocumentShare.document_id == Document.id)
+        .join(User, Document.owner_id == User.id)
+        .where(DocumentShare.shared_with_user_id == user_id)
+        .order_by(DocumentShare.created_at.desc())
+    )
+    return [(doc, owner, share) for doc, owner, share in result.all()]
 
 
 def get_document_file_path(document: Document) -> Path:

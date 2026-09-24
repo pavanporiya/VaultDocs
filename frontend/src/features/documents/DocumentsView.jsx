@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   PageHeader,
   Card,
@@ -12,9 +12,11 @@ import {
   useToast,
 } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
-import apiClient from '../../shared/services/apiClient';
+import apiClient, { downloadFile, saveBlob } from '../../shared/services/apiClient';
 import VersionsModal from './VersionsModal';
 import SharesModal from './SharesModal';
+import UploadModal from './UploadModal';
+import { formatFileSize, formatDate, hasStoredFile, getDocumentDisplayName } from '../../shared/utils/format';
 import {
   FileText,
   Plus,
@@ -23,68 +25,111 @@ import {
   Trash2,
   History,
   Share2,
-  RefreshCw,
   Search,
 } from 'lucide-react';
 import './DocumentsView.css';
 
-export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
+const SEARCH_DEBOUNCE_MS = 400;
+
+export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' }) => {
   const { isAuthenticated } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isVersionsModalOpen, setIsVersionsModalOpen] = useState(false);
+  const [isSharesModalOpen, setIsSharesModalOpen] = useState(false);
+  const [activeDocForModal, setActiveDocForModal] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  // Upload modal state (shared UploadModal)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedDocForUpload, setSelectedDocForUpload] = useState(null);
   const [uploadMode, setUploadMode] = useState('POST'); // 'POST' or 'PUT'
 
-  const [isVersionsModalOpen, setIsVersionsModalOpen] = useState(false);
-  const [isSharesModalOpen, setIsSharesModalOpen] = useState(false);
-  const [activeDocForModal, setActiveDocForModal] = useState(null);
-
-  // Form states
+  // Create form state
   const [docName, setDocName] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const toast = useToast();
 
+  // Debounce the search term so typing hits the real search endpoint calmly.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(localSearch), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [localSearch]);
+
+  // Sync when the NAVBAR search changes (typing there while already on this
+  // page). Local edits never touch the prop, so this cannot loop.
+  const lastNavQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    if (searchQuery !== lastNavQueryRef.current) {
+      lastNavQueryRef.current = searchQuery;
+      setLocalSearch(searchQuery);
+      setDebouncedSearch(searchQuery); // external input skips the debounce
+    }
+  }, [searchQuery]);
+
   const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) return;
-    setLoading(true);
+    const searchTerm = debouncedSearch;
+    const isSearch = Boolean(searchTerm && searchTerm.trim());
+    if (isSearch) {
+      setIsSearching(true);
+    } else {
+      setLoading(true);
+    }
     setError('');
     try {
-      let endpoint = '/documents';
-      const searchTerm = localSearch || searchQuery;
-      if (searchTerm && searchTerm.trim()) {
-        endpoint = `/documents/search?q=${encodeURIComponent(searchTerm.trim())}`;
-      }
-      const [docsData, foldersData] = await Promise.all([
-        apiClient.get(endpoint),
-        apiClient.get('/folders'),
-      ]);
+      const endpoint = isSearch
+        ? `/documents/search?q=${encodeURIComponent(searchTerm.trim())}`
+        : '/documents';
+      // Fetch docs first; folders only matter for the create modal / folder column.
+      const docsData = await apiClient.get(endpoint);
       setDocuments(docsData || []);
-      setFolders(foldersData || []);
     } catch (err) {
       setError(err.message || 'Failed to load documents.');
     } finally {
       setLoading(false);
+      setIsSearching(false);
     }
-  }, [isAuthenticated, localSearch, searchQuery]);
+  }, [isAuthenticated, debouncedSearch]);
 
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  // Handle Search Input Change
+  // Folder list is only needed for the create modal; load it lazily once.
+  useEffect(() => {
+    if (!isAuthenticated || !isCreateModalOpen || folders.length > 0) return;
+    let cancelled = false;
+    apiClient
+      .get('/folders')
+      .then((data) => {
+        if (!cancelled) setFolders(data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setFolders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, isCreateModalOpen, folders.length]);
+
   const handleSearchChange = (e) => {
     setLocalSearch(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setLocalSearch('');
   };
 
   const handleCreateDocument = async (e) => {
@@ -115,69 +160,21 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
     }
   };
 
-  const handleFileUpload = async (e) => {
-    e.preventDefault();
-    if (!selectedFile || !selectedDocForUpload) {
-      toast.error('Please select a file to upload.', 'Validation Error');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const endpoint = `/documents/${selectedDocForUpload.id}/upload`;
-      if (uploadMode === 'PUT') {
-        await apiClient.put(endpoint, formData);
-        toast.success(`Replaced file for "${selectedDocForUpload.name}"!`);
-      } else {
-        await apiClient.upload(endpoint, formData);
-        toast.success(`File uploaded for "${selectedDocForUpload.name}"!`);
-      }
-
-      setSelectedFile(null);
-      setSelectedDocForUpload(null);
-      setIsUploadModalOpen(false);
-      await fetchDocuments();
-    } catch (err) {
-      toast.error(err.message || 'File upload failed.', 'Upload Error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+  // Centralized authenticated download via the shared apiClient helper.
   const handleDownloadCurrentFile = async (doc) => {
+    setDownloadingId(doc.id);
     try {
-      const token = localStorage.getItem('vaultdocs_token');
-      const response = await fetch(`/v1/documents/${doc.id}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('No file has been uploaded for this document yet.');
-        }
-        throw new Error(`Download failed with status ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('content-disposition') || '';
-      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-      const filename = filenameMatch ? filenameMatch[1] : doc.original_filename || doc.name;
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success(`Downloaded "${filename}"`);
+      const { blob, filename } = await downloadFile(`/documents/${doc.id}/download`);
+      saveBlob(blob, filename || getDocumentDisplayName(doc));
+      toast.success(`Downloaded "${filename || doc.name}"`);
     } catch (err) {
-      toast.error(err.message || 'Failed to download file.', 'Download Error');
+      const message =
+        err?.status === 404
+          ? 'No file has been uploaded for this document yet.'
+          : err.message || 'Failed to download file.';
+      toast.error(message, 'Download Error');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -194,11 +191,8 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (!bytes && bytes !== 0) return 'No File';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const openDocumentDetail = (doc) => {
+    if (onNavigate) onNavigate(`/documents/${doc.id}`);
   };
 
   const folderOptions = [
@@ -211,10 +205,15 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
       header: 'Document Name',
       key: 'name',
       render: (row) => (
-        <div className="vd-doc-title-cell">
+        <button
+          type="button"
+          className="vd-doc-title-cell vd-doc-link"
+          onClick={() => openDocumentDetail(row)}
+          title="Open document details"
+        >
           <FileText size={18} className="vd-doc-icon" />
           <span className="vd-doc-name">{row.name}</span>
-        </div>
+        </button>
       ),
     },
     {
@@ -237,6 +236,11 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
       },
     },
     {
+      header: 'Updated',
+      key: 'updated_at',
+      render: (row) => formatDate(row.updated_at),
+    },
+    {
       header: 'Actions',
       key: 'actions',
       align: 'right',
@@ -246,19 +250,19 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
             variant="ghost"
             size="sm"
             icon={Download}
-            title="Download File"
-            disabled={!row.file_path}
+            title={hasStoredFile(row) ? 'Download File' : 'No file uploaded yet'}
+            disabled={!hasStoredFile(row) || downloadingId === row.id}
+            loading={downloadingId === row.id}
             onClick={() => handleDownloadCurrentFile(row)}
           />
           <Button
             variant="ghost"
             size="sm"
-            icon={row.file_path ? RefreshCw : Upload}
-            title={row.file_path ? 'Replace File (New Version)' : 'Upload File'}
+            icon={Upload}
+            title={hasStoredFile(row) ? 'Replace File (New Version)' : 'Upload File'}
             onClick={() => {
               setSelectedDocForUpload(row);
-              setUploadMode(row.file_path ? 'PUT' : 'POST');
-              setSelectedFile(null);
+              setUploadMode(hasStoredFile(row) ? 'PUT' : 'POST');
               setIsUploadModalOpen(true);
             }}
           />
@@ -267,7 +271,7 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
             size="sm"
             icon={History}
             title="Version History"
-            disabled={!row.file_path}
+            disabled={!hasStoredFile(row)}
             onClick={() => {
               setActiveDocForModal(row);
               setIsVersionsModalOpen(true);
@@ -294,6 +298,8 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
       ),
     },
   ];
+
+  const isSearchActive = Boolean(debouncedSearch.trim());
 
   if (!isAuthenticated) {
     return (
@@ -333,23 +339,31 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
       />
 
       <Card elevation="sm">
-        {/* Search Bar */}
+        {/* Search Bar — hits the real /documents/search endpoint (debounced) */}
         <div className="vd-docs-search-bar">
           <Input
             placeholder="Search documents by name..."
             value={localSearch}
             onChange={handleSearchChange}
             icon={Search}
+            type="search"
+            aria-label="Search documents by name"
           />
+          {isSearching && <span className="vd-docs-searching">Searching…</span>}
+          {localSearch && (
+            <Button variant="ghost" size="sm" onClick={clearSearch}>
+              Clear
+            </Button>
+          )}
         </div>
 
         {loading ? (
           <div style={{ padding: '3rem 0', textAlign: 'center' }}>
-            <Loader text="Loading documents..." />
+            <Loader text={isSearchActive ? 'Searching documents...' : 'Loading documents...'} />
           </div>
         ) : error ? (
           <ErrorState
-            title="Could not fetch documents"
+            title={isSearchActive ? 'Search failed' : 'Could not fetch documents'}
             description={error}
             onRetry={fetchDocuments}
           />
@@ -357,10 +371,10 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
           <Table
             columns={columns}
             data={documents}
-            emptyTitle="No documents found"
+            emptyTitle={isSearchActive ? 'No matching documents' : 'No documents found'}
             emptyDescription={
-              localSearch
-                ? `No documents matching "${localSearch}"`
+              isSearchActive
+                ? `No documents matching "${debouncedSearch}"`
                 : 'Click "New Document" to create your first document.'
             }
           />
@@ -404,57 +418,14 @@ export const DocumentsView = ({ onOpenAuthModal, searchQuery = '' }) => {
         </form>
       </Modal>
 
-      {/* Upload / Replace File Modal */}
-      <Modal
+      {/* Upload / Replace File Modal (shared component) */}
+      <UploadModal
         isOpen={isUploadModalOpen}
+        document={selectedDocForUpload}
+        mode={uploadMode}
         onClose={() => setIsUploadModalOpen(false)}
-        title={
-          uploadMode === 'PUT'
-            ? `Replace File (New Version) — ${selectedDocForUpload?.name}`
-            : `Upload File — ${selectedDocForUpload?.name}`
-        }
-        size="sm"
-      >
-        <form onSubmit={handleFileUpload} className="vd-form">
-          <div className="vd-file-input-group">
-            <label className="vd-file-label">Select File to Upload</label>
-            <input
-              type="file"
-              className="vd-file-input"
-              onChange={(e) => setSelectedFile(e.target.files[0] || null)}
-              required
-            />
-            {selectedFile && (
-              <span className="vd-selected-file-info">
-                Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-              </span>
-            )}
-          </div>
-          {uploadMode === 'PUT' && (
-            <span className="vd-replace-note">
-              Uploading a replacement file creates a new document version automatically while preserving historical versions.
-            </span>
-          )}
-          <div className="vd-modal-footer">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setIsUploadModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              icon={Upload}
-              loading={submitting}
-              disabled={!selectedFile}
-            >
-              {uploadMode === 'PUT' ? 'Upload Replacement' : 'Upload File'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        onUploaded={() => fetchDocuments()}
+      />
 
       {/* Version History Modal */}
       <VersionsModal

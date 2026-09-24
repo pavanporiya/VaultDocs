@@ -16,6 +16,7 @@ from vaultdocs.schemas.document import (
     DocumentResponse,
     DocumentUpdate,
     DocumentVersionResponse,
+    SharedDocumentResponse,
 )
 from vaultdocs.services.document import (
     create_document,
@@ -25,6 +26,7 @@ from vaultdocs.services.document import (
     get_document_version_by_id,
     get_version_file_path,
     list_document_versions,
+    list_documents_shared_with_user,
     list_user_documents,
     search_user_documents,
     update_document,
@@ -81,6 +83,43 @@ async def list_documents(
         owner_id=current_user.id,
     )
     return [DocumentResponse.model_validate(d) for d in documents]
+
+
+@router.get(
+    "/shared",
+    response_model=list[SharedDocumentResponse],
+)
+async def list_shared_with_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[SharedDocumentResponse]:
+    """
+    List all documents shared with the authenticated user (read-only).
+    """
+    rows = await list_documents_shared_with_user(
+        db=db,
+        user_id=current_user.id,
+    )
+
+    return [
+        SharedDocumentResponse(
+            id=doc.id,
+            name=doc.name,
+            owner_id=doc.owner_id,
+            folder_id=doc.folder_id,
+            # file_path is intentionally NOT exposed to recipients.
+            file_path=None,
+            original_filename=doc.original_filename,
+            file_size=doc.file_size,
+            content_type=doc.content_type,
+            created_at=doc.created_at,
+            updated_at=doc.updated_at,
+            shared_by_name=owner.full_name,
+            shared_by_email=owner.email,
+            shared_at=share.created_at,
+        )
+        for doc, owner, share in rows
+    ]
 
 
 @router.get(

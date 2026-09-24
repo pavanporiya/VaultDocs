@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Input, Button, Table, Loader, ErrorState, useToast } from '../../shared/components';
 import apiClient from '../../shared/services/apiClient';
+import { formatDate } from '../../shared/utils/format';
 import { UserPlus, Trash2, ShieldCheck, Mail } from 'lucide-react';
 import './Modals.css';
 
+/**
+ * Share management modal (owner side).
+ *
+ * Backend contract (verified):
+ * - POST   /documents/{id}/shares            share with a registered email
+ * - GET    /documents/{id}/shares            list shares (owner only)
+ * - DELETE /documents/{id}/shares/{share_id} revoke
+ *
+ * ShareResponse now includes shared_with_email; older responses without it
+ * fall back to showing the recipient user ID.
+ */
 export const SharesModal = ({ isOpen, onClose, document }) => {
   const [shares, setShares] = useState([]);
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -43,7 +55,7 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
       await apiClient.post(`/documents/${document.id}/shares`, {
         user_email: recipientEmail.trim(),
       });
-      toast.success(`Shared "${document.name}" with ${recipientEmail}`);
+      toast.success(`Document shared with ${recipientEmail.trim()}`);
       setRecipientEmail('');
       await fetchShares();
     } catch (err) {
@@ -66,19 +78,34 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
     }
   };
 
-  const formatDate = (isoString) => {
-    if (!isoString) return 'N/A';
-    return new Date(isoString).toLocaleDateString();
+  const formatUserId = (id) => {
+    if (!id) return '—';
+    const str = String(id);
+    return str.length > 13 ? `${str.slice(0, 8)}…${str.slice(-4)}` : str;
   };
 
   const columns = [
     {
-      header: 'Recipient Email',
-      key: 'user_email',
+      header: 'Recipient',
+      key: 'shared_with_user_id',
       render: (row) => (
         <div className="vd-doc-cell">
           <Mail size={16} />
-          <span>{row.shared_with_user?.email || row.user_email || 'Registered User'}</span>
+          {row.shared_with_email ? (
+            <span
+              className="vd-share-recipient"
+              title={`Recipient user ID: ${row.shared_with_user_id}`}
+            >
+              {row.shared_with_email}
+            </span>
+          ) : (
+            <span
+              className="vd-share-user-id"
+              title={`Recipient user ID: ${row.shared_with_user_id}`}
+            >
+              User {formatUserId(row.shared_with_user_id)}
+            </span>
+          )}
         </div>
       ),
     },

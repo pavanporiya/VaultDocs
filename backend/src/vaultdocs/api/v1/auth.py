@@ -14,9 +14,11 @@ from vaultdocs.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
+from vaultdocs.schemas.user import UserUpdate
 from vaultdocs.services.auth import (
     login_user,
     register_user,
+    update_user_profile,
 )
 
 router = APIRouter(
@@ -87,3 +89,30 @@ async def get_me(
     Return the currently authenticated user.
     """
     return UserResponse.model_validate(current_user)
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+)
+async def update_me(
+    update_data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """
+    Update the currently authenticated user's profile (full_name).
+    """
+    try:
+        updated_user = await update_user_profile(
+            db=db,
+            user=current_user,
+            update_data=update_data,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return UserResponse.model_validate(updated_user)

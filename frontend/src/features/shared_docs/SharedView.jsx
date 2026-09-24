@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   PageHeader,
   Card,
@@ -10,82 +10,130 @@ import {
   useToast,
 } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
-import apiClient from '../../shared/services/apiClient';
-import { Download, ShieldCheck, Search, FileText, Lock } from 'lucide-react';
+import apiClient, { downloadFile, saveBlob } from '../../shared/services/apiClient';
+import { formatFileSize, formatDate, hasStoredFile, getDocumentDisplayName } from '../../shared/utils/format';
+import { Download, ShieldCheck, Search, FileText, Lock, RefreshCw } from 'lucide-react';
 import './SharedView.css';
 
-export const SharedView = ({ onOpenAuthModal }) => {
+/**
+ * Shared With Me.
+ *
+ * Lists documents shared with the authenticated user via the real backend
+ * endpoint GET /v1/documents/shared (name, owner, size, shared date).
+ *
+ * The manual UUID lookup is kept as a fallback: opening a document by ID
+ * (GET /v1/documents/{id} — server-side access controlled) adds it to the
+ * session list below the server results.
+ */
+export const SharedView = ({ onOpenAuthModal, onNavigate }) => {
   const { isAuthenticated } = useAuth();
+  const [serverShared, setServerShared] = useState([]);
+  const [manualDocs, setManualDocs] = useState([]);
   const [docIdInput, setDocIdInput] = useState('');
-  const [sharedDocs, setSharedDocs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const toast = useToast();
+
+  const fetchSharedList = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setListLoading(true);
+    setListError('');
+    try {
+      const data = await apiClient.get('/documents/shared');
+      setServerShared(data || []);
+    } catch (err) {
+      setListError(err.message || 'Failed to load shared documents.');
+    } finally {
+      setListLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchSharedList();
+  }, [fetchSharedList]);
 
   const handleFetchSharedDoc = async (e) => {
     e.preventDefault();
     if (!docIdInput.trim()) return;
 
-    setLoading(true);
-    setError('');
+    setLookupLoading(true);
     try {
       const docData = await apiClient.get(`/documents/${docIdInput.trim()}`);
-      // Add to list if not already present
-      setSharedDocs((prev) => {
+      setManualDocs((prev) => {
         const exists = prev.some((d) => d.id === docData.id);
         return exists ? prev : [docData, ...prev];
       });
+      setDocIdInput('');
       toast.success(`Accessed shared document "${docData.name}"`);
     } catch (err) {
-      setError(err.message || 'Shared document not found or access revoked.');
-      toast.error(err.message || 'Access denied.', 'Shared Access');
+      const message =
+        err?.status === 404
+          ? 'Document not found — the ID is invalid, the document was deleted, or it is not shared with your account.'
+          : err.message || 'Shared document lookup failed.';
+      toast.error(message, 'Shared Access');
     } finally {
-      setLoading(false);
+      setLookupLoading(false);
     }
   };
 
   const handleDownloadSharedFile = async (doc) => {
+    setDownloadingId(doc.id);
     try {
-      const token = localStorage.getItem('vaultdocs_token');
-      const response = await fetch(`/v1/documents/${doc.id}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!response.ok) {
-        throw new Error('Could not download shared file.');
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('content-disposition') || '';
-      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-      const filename = filenameMatch ? filenameMatch[1] : doc.original_filename || doc.name;
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success(`Downloaded "${filename}"`);
+      const { blob, filename } = await downloadFile(`/documents/${doc.id}/download`);
+      saveBlob(blob, filename || getDocumentDisplayName(doc));
+      toast.success(`Downloaded "${filename || doc.name}"`);
     } catch (err) {
       toast.error(err.message || 'Download failed.', 'Error');
+    } finally {
+      setDownloadingId(null);
     }
   };
+
+  const openDocumentDetail = (doc) => {
+    if (onNavigate) onNavigate(`/documents/${doc.id}`);
+  };
+
+  // Server results first; manually opened docs merged in (deduped by id).
+  const serverIds = new Set(serverShared.map((d) => d.id));
+  const mergedDocs = [
+    ...manualDocs.filter((d) => !serverIds.has(d.id)),
+    ...serverShared,
+  ];
 
   const columns = [
     {
       header: 'Document Name',
       key: 'name',
       render: (row) => (
-        <div className="vd-shared-doc-cell">
+        <button
+          type="button"
+          className="vd-shared-doc-cell vd-shared-doc-link"
+          onClick={() => openDocumentDetail(row)}
+          title="Open document details"
+        >
           <FileText size={18} className="vd-shared-doc-icon" />
           <span className="vd-shared-doc-name">{row.name}</span>
-        </div>
+        </button>
       ),
+    },
+    {
+      header: 'Shared By',
+      key: 'shared_by_email',
+      render: (row) =>
+        row.shared_by_name || row.shared_by_email ? (
+          <div className="vd-shared-owner">
+            <span className="vd-shared-owner-name">{row.shared_by_name || 'Unknown owner'}</span>
+            {row.shared_by_email && (
+              <span className="vd-shared-owner-email">{row.shared_by_email}</span>
+            )}
+          </div>
+        ) : (
+          <span className="vd-shared-owner-unknown">Opened by ID</span>
+        ),
     },
     {
       header: 'Access Level',
@@ -98,9 +146,14 @@ export const SharedView = ({ onOpenAuthModal }) => {
       ),
     },
     {
-      header: 'Original File',
-      key: 'original_filename',
-      render: (row) => row.original_filename || '—',
+      header: 'Size',
+      key: 'file_size',
+      render: (row) => formatFileSize(row.file_size),
+    },
+    {
+      header: 'Shared Date',
+      key: 'shared_at',
+      render: (row) => formatDate(row.shared_at || row.created_at),
     },
     {
       header: 'Action',
@@ -111,7 +164,8 @@ export const SharedView = ({ onOpenAuthModal }) => {
           variant="ghost"
           size="sm"
           icon={Download}
-          disabled={!row.file_path}
+          disabled={!hasStoredFile(row) || downloadingId === row.id}
+          loading={downloadingId === row.id}
           onClick={() => handleDownloadSharedFile(row)}
         >
           Download
@@ -141,42 +195,77 @@ export const SharedView = ({ onOpenAuthModal }) => {
     <div className="vd-shared-page">
       <PageHeader
         title="Shared With Me"
-        description="Access and download documents shared with your registered email in read-only mode."
+        description="Documents other users have shared with your account in read-only mode."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            icon={RefreshCw}
+            loading={listLoading}
+            onClick={fetchSharedList}
+          >
+            Refresh
+          </Button>
+        }
       />
 
       <Card
-        title="Access Shared Document by ID"
-        subtitle="Owners can share document UUIDs with you to grant instant read-only access."
+        title="Documents Shared With You"
+        subtitle="Live from the server — recipients have read-only access"
         elevation="sm"
+      >
+        {listLoading ? (
+          <div style={{ padding: '2rem 0', textAlign: 'center' }}>
+            <Loader text="Loading shared documents..." />
+          </div>
+        ) : listError ? (
+          <ErrorState
+            title="Could not load shared documents"
+            description={listError}
+            onRetry={fetchSharedList}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            data={mergedDocs}
+            emptyTitle="Nothing shared with you yet"
+            emptyDescription="When another user shares a document with your email, it will appear here."
+          />
+        )}
+        {manualDocs.length > 0 && (
+          <div className="vd-shared-session-note">
+            Includes {manualDocs.length} document{manualDocs.length === 1 ? '' : 's'} opened by ID
+            this session.
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setManualDocs([])}
+              aria-label="Clear manually opened documents"
+            >
+              Clear
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      <Card
+        title="Open a Shared Document by ID"
+        subtitle="Fallback lookup — adds the document to the list above for this session"
+        elevation="sm"
+        style={{ marginTop: '1.5rem' }}
       >
         <form onSubmit={handleFetchSharedDoc} className="vd-shared-lookup-form">
           <Input
-            placeholder="Paste Shared Document UUID (e.g. 4683886e-ca4c-4bd5-a271-08ba9e720112)..."
+            placeholder="Paste shared document UUID..."
             value={docIdInput}
             onChange={(e) => setDocIdInput(e.target.value)}
             icon={Search}
             required
           />
-          <Button variant="primary" type="submit" icon={ShieldCheck} loading={loading}>
+          <Button variant="primary" type="submit" icon={ShieldCheck} loading={lookupLoading}>
             Access Document
           </Button>
         </form>
-      </Card>
-
-      <Card title="Shared Documents Session List" elevation="sm" style={{ marginTop: '1.5rem' }}>
-        {error ? (
-          <ErrorState
-            title="Shared document lookup failed"
-            description={error}
-          />
-        ) : (
-          <Table
-            columns={columns}
-            data={sharedDocs}
-            emptyTitle="No shared documents loaded"
-            emptyDescription="Paste a shared document UUID above or ask a teammate to share a document with your email."
-          />
-        )}
       </Card>
     </div>
   );

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import Navbar from '../components/Navbar/Navbar';
 import Sidebar, { DEFAULT_SIDEBAR_ITEMS } from '../components/Sidebar/Sidebar';
 import ToastProvider from '../components/Toast/ToastContext';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { WifiOff } from 'lucide-react';
 import './MainLayout.css';
 
 /**
  * Reusable MainLayout component wrapping the application's Navbar, Sidebar,
- * main content viewport, and Toast notification container.
+ * main content viewport, offline banner, and Toast notification container.
  */
 export const MainLayout = ({
   children,
@@ -22,6 +24,7 @@ export const MainLayout = ({
   className = '',
 }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const isOnline = useOnlineStatus();
 
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen((prev) => !prev);
@@ -46,6 +49,16 @@ export const MainLayout = ({
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
         />
+
+        {!isOnline && (
+          <div className="vd-offline-banner" role="status" aria-live="polite">
+            <WifiOff size={16} />
+            <span>
+              You are offline — VaultDocs cannot reach the server. Actions will fail until the
+              connection is restored.
+            </span>
+          </div>
+        )}
 
         <div className="vd-main-layout__body">
           <Sidebar

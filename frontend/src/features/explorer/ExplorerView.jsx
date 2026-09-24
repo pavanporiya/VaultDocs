@@ -13,6 +13,7 @@ import {
 } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import apiClient from '../../shared/services/apiClient';
+import { formatFileSize, formatDate } from '../../shared/utils/format';
 import {
   FolderOpen,
   FolderPlus,
@@ -24,7 +25,7 @@ import {
 } from 'lucide-react';
 import './ExplorerView.css';
 
-export const ExplorerView = ({ onOpenAuthModal }) => {
+export const ExplorerView = ({ onOpenAuthModal, onNavigate }) => {
   const { isAuthenticated } = useAuth();
   const [folders, setFolders] = useState([]);
   const [currentFolder, setCurrentFolder] = useState(null); // null = root
@@ -112,19 +113,6 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
     }
   };
 
-  const handleDeleteFolder = async (folder) => {
-    if (!window.confirm(`Are you sure you want to delete folder "${folder.name}"?`)) {
-      return;
-    }
-    try {
-      await apiClient.delete(`/folders/${folder.id}`);
-      toast.success(`Folder "${folder.name}" deleted.`);
-      await fetchFoldersAndDocs();
-    } catch (err) {
-      toast.error(err.message || 'Failed to delete folder.', 'Error');
-    }
-  };
-
   const navigateToFolder = (folder) => {
     if (!folder) {
       setCurrentFolder(null);
@@ -133,6 +121,33 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
       setCurrentFolder(folder);
       setFolderPath((prev) => [...prev, folder]);
     }
+  };
+
+  const handleDeleteFolder = async (folder) => {
+    if (!window.confirm(`Are you sure you want to delete folder "${folder.name}"?`)) {
+      return;
+    }
+    try {
+      await apiClient.delete(`/folders/${folder.id}`);
+      toast.success(`Folder "${folder.name}" deleted.`);
+      // If the deleted folder is open (or an ancestor of it), fall back to root
+      // so the explorer never points at a now-nonexistent folder.
+      if (currentFolder) {
+        const isDeleted = currentFolder.id === folder.id;
+        const isDescendant = folderPath.some((f) => f.id === folder.id);
+        if (isDeleted || isDescendant) {
+          setCurrentFolder(null);
+          setFolderPath([]);
+        }
+      }
+      await fetchFoldersAndDocs();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete folder.', 'Error');
+    }
+  };
+
+  const openDocumentDetail = (doc) => {
+    if (onNavigate) onNavigate(`/documents/${doc.id}`);
   };
 
   // Filter subfolders for current folder
@@ -174,10 +189,15 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
       header: 'Document Name',
       key: 'name',
       render: (row) => (
-        <div className="vd-explorer-doc-cell">
+        <button
+          type="button"
+          className="vd-explorer-doc-cell vd-explorer-doc-link"
+          onClick={() => openDocumentDetail(row)}
+          title="Open document details"
+        >
           <FileText size={18} className="vd-explorer-doc-icon" />
           <span className="vd-explorer-doc-name">{row.name}</span>
-        </div>
+        </button>
       ),
     },
     {
@@ -186,9 +206,14 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
       render: (row) => row.original_filename || '—',
     },
     {
+      header: 'Size',
+      key: 'file_size',
+      render: (row) => formatFileSize(row.file_size),
+    },
+    {
       header: 'Created',
       key: 'created_at',
-      render: (row) => new Date(row.created_at).toLocaleDateString(),
+      render: (row) => formatDate(row.created_at),
     },
   ];
 
@@ -240,7 +265,16 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
                   <div
                     key={folder.id}
                     className="vd-folder-card"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open folder ${folder.name}`}
                     onClick={() => navigateToFolder(folder)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigateToFolder(folder);
+                      }
+                    }}
                   >
                     <div className="vd-folder-card-header">
                       <div className="vd-folder-icon-wrap">
@@ -251,6 +285,7 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
                           type="button"
                           className="vd-folder-act-btn"
                           title="Rename Folder"
+                          aria-label={`Rename folder ${folder.name}`}
                           onClick={() => {
                             setEditingFolder(folder);
                             setNewFolderName(folder.name);
@@ -263,6 +298,7 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
                           type="button"
                           className="vd-folder-act-btn vd-folder-act-btn--danger"
                           title="Delete Folder"
+                          aria-label={`Delete folder ${folder.name}`}
                           onClick={() => handleDeleteFolder(folder)}
                         >
                           <Trash2 size={14} />
@@ -294,6 +330,8 @@ export const ExplorerView = ({ onOpenAuthModal }) => {
           </Card>
         </>
       )}
+
+      {/* Document editing happens in the document workspace at /documents/:id */}
 
       {/* Create Folder Modal */}
       <Modal

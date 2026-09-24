@@ -62,6 +62,29 @@ class DocumentResponse(BaseModel):
     updated_at: datetime
 
 
+class SharedDocumentResponse(DocumentResponse):
+    """
+    Response schema for documents shared with the current user.
+
+    Extends DocumentResponse with read-only sharing context.
+    """
+
+    shared_by_name: str | None = Field(
+        default=None,
+        description="Full name of the document owner who shared it.",
+    )
+
+    shared_by_email: str | None = Field(
+        default=None,
+        description="Email of the document owner who shared it.",
+    )
+
+    shared_at: datetime | None = Field(
+        default=None,
+        description="Timestamp at which the share was created.",
+    )
+
+
 class DocumentVersionResponse(BaseModel):
     """
     Response schema for document version operations.

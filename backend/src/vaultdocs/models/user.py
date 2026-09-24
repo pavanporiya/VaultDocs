@@ -5,8 +5,9 @@ User database model.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from sqlalchemy import Boolean, String, Uuid
+from sqlalchemy import JSON, Boolean, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from vaultdocs.db.base import Base
@@ -53,4 +54,11 @@ class User(Base, TimestampMixin):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    # Free-form user preferences (theme, density, notifications, ...).
+    # Nullable without server default: application code treats NULL as {}.
+    preferences: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
     )

@@ -17,7 +17,7 @@
   align-items: flex-start;
   gap: var(--spacing-sm);
   padding: 0.875rem 1rem;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
@@ -66,6 +66,11 @@
 
 .vd-toast__close:hover {
   color: var(--color-text-main);
+}
+
+.vd-toast__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* Toast Variants */
