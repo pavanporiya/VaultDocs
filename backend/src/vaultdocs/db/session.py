@@ -20,6 +20,9 @@ engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     future=True,
+    # Recycle stale/dead connections (e.g. DB restarted) instead of
+    # raising "connection is closed" errors at request time.
+    pool_pre_ping=True,
 )
 
 # =============================================================================
