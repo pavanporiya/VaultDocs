@@ -20,11 +20,24 @@ async def _create_document(client: AsyncClient, headers: dict[str, str], name: s
 
 
 async def _register_user(client: AsyncClient, email: str) -> dict[str, str]:
+    from vaultdocs.services.email import get_test_outbox
+
     register = await client.post(
         "/v1/auth/register",
         json={"full_name": "Recipient", "email": email, "password": "Password123!"},
     )
     assert register.status_code in (200, 201)
+
+    outbox = get_test_outbox()
+    assert len(outbox) > 0
+    otp = outbox[-1]["otp_code"]
+
+    verify = await client.post(
+        "/v1/auth/verify-otp",
+        json={"email": email, "otp": otp},
+    )
+    assert verify.status_code == 200
+
     login = await client.post(
         "/v1/auth/login",
         json={"email": email, "password": "Password123!"},

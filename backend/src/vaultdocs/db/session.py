@@ -2,6 +2,7 @@
 Database session configuration for VaultDocs.
 """
 
+import sys
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from vaultdocs.core.settings import settings
 
@@ -23,6 +25,7 @@ engine = create_async_engine(
     # Recycle stale/dead connections (e.g. DB restarted) instead of
     # raising "connection is closed" errors at request time.
     pool_pre_ping=True,
+    poolclass=NullPool if "pytest" in sys.modules else None,
 )
 
 # =============================================================================

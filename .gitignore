@@ -37,6 +37,11 @@ env/
 .env
 .env.local
 .env.*.local
+.env.backup
+env_variables.*
+restore_env.*
+install_dev_tools.bat
+.freebuff/
 
 # --------------- Testing ---------------
 .coverage

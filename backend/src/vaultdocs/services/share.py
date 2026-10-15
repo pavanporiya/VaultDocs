@@ -4,7 +4,7 @@ Share service functions.
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vaultdocs.models.document import Document
@@ -77,16 +77,16 @@ async def create_share(
 
     email = share_data.user_email.strip().lower()
 
-    if email == document.owner.email:
-        raise ValueError("Cannot share a document with yourself.")
-
     result = await db.execute(
-        select(User).where(User.email == email),
+        select(User).where(func.lower(User.email) == email),
     )
     recipient = result.scalar_one_or_none()
 
     if recipient is None:
         raise ValueError("User to share with does not exist.")
+
+    if recipient.id == owner_id:
+        raise ValueError("Cannot share a document with yourself.")
 
     existing = await db.execute(
         select(DocumentShare).where(

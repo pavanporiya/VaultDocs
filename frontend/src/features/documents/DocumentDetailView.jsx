@@ -31,6 +31,7 @@ import {
   Eye,
   FileWarning,
   Lock,
+  Sparkles,
 } from 'lucide-react';
 import './DocumentDetailView.css';
 
@@ -92,6 +93,13 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
   const previewUrlRef = useRef(null);
   const previewTokenRef = useRef(0);
 
+  // Document intelligence state (extraction status, tags, summary)
+  const [intelligence, setIntelligence] = useState(null);
+  const [intelState, setIntelState] = useState('idle'); // idle|loading|ready|error
+  const [intelError, setIntelError] = useState('');
+  const [reindexing, setReindexing] = useState(false);
+  const intelPollCountRef = useRef(0);
+
   const clearPreviewUrl = () => {
     if (previewUrlRef.current) {
       window.URL.revokeObjectURL(previewUrlRef.current);
@@ -137,6 +145,46 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
       setFolders([]);
     }
   }, []);
+
+  const fetchIntelligence = useCallback(async () => {
+    if (!documentId) return null;
+    setIntelState('loading');
+    setIntelError('');
+    try {
+      const data = await apiClient.get(`/documents/${documentId}/intelligence`);
+      setIntelligence(data);
+      setIntelState('ready');
+      return data;
+    } catch (err) {
+      setIntelError(err.message || 'Could not load document intelligence.');
+      setIntelState('error');
+      return null;
+    }
+  }, [documentId]);
+
+  // Intelligence polling: while extraction is pending/processing, re-poll at a
+  // gentle interval (capped) so the panel fills in without a manual refresh.
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
+    if (intelState === 'error') return;
+
+    const inProgress =
+      intelligence && (intelligence.status === 'pending' || intelligence.status === 'processing');
+
+    if (!intelligence && intelState === 'idle') {
+      fetchIntelligence();
+      return undefined;
+    }
+
+    if (!inProgress) return undefined;
+    if (intelPollCountRef.current >= 40) return undefined; // ~1 min cap
+
+    const timer = setTimeout(() => {
+      intelPollCountRef.current += 1;
+      fetchIntelligence();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, authLoading, intelligence, intelState, fetchIntelligence]);
 
   useEffect(() => {
     if (!isAuthenticated || authLoading) return;
@@ -278,6 +326,11 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
       fetchDocument();
     }
     fetchVersionCount();
+    // The stored file changed: reset intelligence so polling restarts and
+    // stale extracted text/tags/summary are never shown for the new file.
+    intelPollCountRef.current = 0;
+    setIntelligence(null);
+    setIntelState('idle');
   };
 
   const openRename = () => {
@@ -301,6 +354,22 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
   const openSharesModal = () => {
     if (!isOwner) return;
     setIsSharesModalOpen(true);
+  };
+
+  const handleReindex = async () => {
+    if (!document || !isOwner) return;
+    setReindexing(true);
+    try {
+      const data = await apiClient.post(`/documents/${document.id}/intelligence/reindex`);
+      setIntelligence(data);
+      setIntelState('ready');
+      intelPollCountRef.current = 0;
+      toast.success('Document intelligence re-indexed.');
+    } catch (err) {
+      toast.error(err.message || 'Re-index failed.', 'Re-index Error');
+    } finally {
+      setReindexing(false);
+    }
   };
 
   // ------------------------------------------------------------------
@@ -408,6 +477,143 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
 
     return (
       <pre className="vd-docdetail-preview-text">{textContent}</pre>
+    );
+  };
+
+  const renderIntelligence = () => {
+    if (intelState === 'loading' && !intelligence) {
+      return (
+        <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+          <Loader text="Loading document intelligence..." />
+        </div>
+      );
+    }
+
+    if (intelState === 'error') {
+      return (
+        <div className="vd-docdetail-intel-empty" role="alert">
+          <FileWarning size={28} />
+          <span>{intelError || 'Document intelligence could not be loaded.'}</span>
+          <Button variant="outline" size="sm" icon={RefreshCw} onClick={fetchIntelligence}>
+            Retry
+          </Button>
+        </div>
+      );
+    }
+
+    if (!intelligence) return null;
+
+    const { status } = intelligence;
+
+    if (!intelligence.file_ready || !status) {
+      return (
+        <div className="vd-docdetail-intel-empty">
+          <FileWarning size={28} />
+          <span>
+            No file uploaded yet — upload a file to extract text, generate tags, and build a
+            summary.
+          </span>
+        </div>
+      );
+    }
+
+    if (status === 'pending' || status === 'processing') {
+      return (
+        <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+          <Loader text="Analyzing document (extracting text, tags, summary)..." />
+        </div>
+      );
+    }
+
+    if (status !== 'completed') {
+      const statusLabels = {
+        unsupported: 'Unsupported file type for text extraction.',
+        encrypted: 'The PDF is encrypted and could not be read.',
+        no_text: 'No extractable text found (scanned or image-only file).',
+        failed: 'Text extraction failed for this file.',
+      };
+      return (
+        <div className="vd-docdetail-intel-empty" role="status">
+          <FileWarning size={28} />
+          <span>{intelligence.error || statusLabels[status] || 'Extraction unavailable.'}</span>
+          {isOwner && (
+            <Button variant="outline" size="sm" icon={RefreshCw} loading={reindexing} onClick={handleReindex}>
+              Re-run Extraction
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="vd-docdetail-intel-body">
+        {intelligence.summary ? (
+          <div className="vd-docdetail-intel-section">
+            <h4 className="vd-docdetail-intel-heading">
+              Summary
+              {intelligence.summary_source && (
+                <span className="vd-badge vd-badge-readonly vd-docdetail-intel-source">
+                  {intelligence.summary_source === 'extractive'
+                    ? 'local extractive'
+                    : intelligence.summary_source}
+                </span>
+              )}
+            </h4>
+            <p className="vd-docdetail-intel-summary">{intelligence.summary}</p>
+          </div>
+        ) : (
+          <div className="vd-docdetail-intel-empty">
+            <FileWarning size={24} />
+            <span>No summary available — extraction produced no text.</span>
+          </div>
+        )}
+
+        {intelligence.key_points && intelligence.key_points.length > 0 && (
+          <div className="vd-docdetail-intel-section">
+            <h4 className="vd-docdetail-intel-heading">Key Points</h4>
+            <ul className="vd-docdetail-intel-points">
+              {intelligence.key_points.map((point, index) => (
+                <li key={`point-${index}`}>{point}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="vd-docdetail-intel-section">
+          <h4 className="vd-docdetail-intel-heading">Tags</h4>
+          {intelligence.tags && intelligence.tags.length > 0 ? (
+            <div className="vd-docdetail-intel-tags">
+              {intelligence.tags.map((tag) => (
+                <span className="vd-badge vd-badge-readonly" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="vd-docdetail-intel-muted">No tags generated.</p>
+          )}
+        </div>
+
+        <div className="vd-docdetail-intel-meta">
+          {typeof intelligence.page_count === 'number' && (
+            <span>{intelligence.page_count} pages</span>
+          )}
+          {typeof intelligence.char_count === 'number' && (
+            <span>{intelligence.char_count.toLocaleString()} chars extracted</span>
+          )}
+          {intelligence.extracted_at && (
+            <span>Analyzed {formatDate(intelligence.extracted_at, { withTime: true })}</span>
+          )}
+        </div>
+
+        {isOwner && (
+          <div className="vd-docdetail-intel-actions">
+            <Button variant="ghost" size="sm" icon={RefreshCw} loading={reindexing} onClick={handleReindex}>
+              Re-index
+            </Button>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -656,6 +862,28 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
           }
         >
           <div className="vd-docdetail-preview">{renderPreview()}</div>
+        </Card>
+      </div>
+
+      {/* Document intelligence: extraction status, summary, key points, tags */}
+      <div className="vd-docdetail-intel-wrap">
+        <Card
+          title="Document Intelligence"
+          subtitle="Extracted text, generated tags, and summary"
+          elevation="sm"
+          headerAction={
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Sparkles}
+              onClick={fetchIntelligence}
+              disabled={intelState === 'loading'}
+            >
+              Refresh
+            </Button>
+          }
+        >
+          {renderIntelligence()}
         </Card>
       </div>
 
