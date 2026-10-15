@@ -16,6 +16,7 @@ from vaultdocs.models.document_version import DocumentVersion
 from vaultdocs.models.folder import Folder
 from vaultdocs.models.user import User
 from vaultdocs.schemas.document import DocumentCreate, DocumentUpdate
+from vaultdocs.services.extraction import STATUS_PENDING
 from vaultdocs.services.folder import get_folder_by_id
 
 
@@ -185,6 +186,24 @@ async def delete_document(
     await db.commit()
 
 
+def _reset_intelligence_fields(document: Document) -> None:
+    """
+    Clear derived intelligence (text, tags, summary, status) for a document
+    whose stored file just changed. Sets status to ``pending`` so the
+    background extraction job picks it up again.
+    """
+    document.extraction_status = STATUS_PENDING
+    document.extracted_text = None
+    document.extracted_char_count = None
+    document.page_count = None
+    document.tags = None
+    document.summary = None
+    document.summary_source = None
+    document.extraction_error = None
+    document.extracted_at = None
+    document.content_fingerprint = None
+
+
 async def upload_document_file(
     db: AsyncSession,
     document: Document,
@@ -261,6 +280,11 @@ async def upload_document_file(
     document.original_filename = safe_original_filename
     document.file_size = total_size
     document.content_type = file.content_type or "application/octet-stream"
+
+    # The stored bytes changed: any previously derived text/tags/summary now
+    # describes a different file. Reset it and queue a fresh extraction so the
+    # UI can never show stale intelligence for the current version.
+    _reset_intelligence_fields(document)
 
     new_version = DocumentVersion(
         document_id=document.id,

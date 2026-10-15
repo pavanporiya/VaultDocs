@@ -17,7 +17,6 @@ import ForbiddenView from './features/system/ForbiddenView';
 import ServerErrorView from './features/system/ServerErrorView';
 import OfflineView from './features/system/OfflineView';
 import SystemShowcaseView from './features/system/SystemShowcaseView';
-import ShowcaseView from './features/showcase/ShowcaseView';
 import './App.css';
 
 /**
@@ -43,7 +42,6 @@ const ROUTES = [
   { path: '/500', view: '500' },
   { path: '/offline', view: 'offline' },
   { path: '/system', view: 'system' },
-  { path: '/showcase', view: 'showcase' },
 ];
 
 /**
@@ -66,7 +64,6 @@ const NAV_PATH_MAP = {
   500: '/500',
   offline: '/offline',
   system: '/system',
-  showcase: '/showcase',
 };
 
 /**
@@ -124,7 +121,6 @@ const PUBLIC_VIEWS = new Set([
   '500',
   'offline',
   'system',
-  'showcase',
   'dashboard',
 ]);
 
@@ -252,8 +248,6 @@ function MainAppContent() {
             onOpenAuthModal={handleOpenAuthModal}
           />
         );
-      case 'showcase':
-        return <ShowcaseView />;
       default:
         return <NotFoundView onNavigate={handleNavigate} />;
     }

@@ -2,7 +2,7 @@
 Pytest configuration and fixtures.
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -20,6 +20,36 @@ from vaultdocs.models.user import User
 @pytest.fixture(scope="session")
 def anyio_backend() -> str:
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def _force_local_summary_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Force the credential-free extractive summary provider during tests.
+
+    Guarantees the suite never calls a remote AI provider (no network use,
+    no credential dependence, deterministic summary_source assertions) no
+    matter what a developer's local .env configures. Individual tests may
+    override this to exercise provider fallback behavior.
+    """
+    monkeypatch.setattr(settings, "ai_provider", "extractive")
+    monkeypatch.setattr(settings, "ai_api_key", None)
+
+
+@pytest.fixture(autouse=True)
+def _force_mock_smtp() -> Generator[None]:
+    """
+    Force isolated in-memory mock SMTP during all automated test runs.
+
+    Guarantees no real email network calls are ever made during testing.
+    """
+    from vaultdocs.services.email import clear_test_outbox, set_mock_smtp
+
+    set_mock_smtp(True)
+    clear_test_outbox()
+    yield
+    clear_test_outbox()
+    set_mock_smtp(False)
 
 
 @pytest.fixture
@@ -66,6 +96,7 @@ async def user_a(db_session: AsyncSession) -> User:
         full_name="User A",
         email="user_a@example.com",
         password_hash=hash_password("Password123!"),
+        is_verified=True,
     )
     db_session.add(user)
     await db_session.commit()
@@ -82,6 +113,7 @@ async def user_b(db_session: AsyncSession) -> User:
         full_name="User B",
         email="user_b@example.com",
         password_hash=hash_password("Password123!"),
+        is_verified=True,
     )
     db_session.add(user)
     await db_session.commit()

@@ -89,8 +89,11 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
     }
     setError('');
     try {
+      // Content search first: matches extracted document text (permission-
+      // filtered server-side) and gracefully falls back to name-based keyword
+      // search for documents that are not indexed yet.
       const endpoint = isSearch
-        ? `/documents/search?q=${encodeURIComponent(searchTerm.trim())}`
+        ? `/documents/search/content?q=${encodeURIComponent(searchTerm.trim())}`
         : '/documents';
       // Fetch docs first; folders only matter for the create modal / folder column.
       const docsData = await apiClient.get(endpoint);

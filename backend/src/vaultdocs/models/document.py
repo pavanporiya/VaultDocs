@@ -5,9 +5,10 @@ Document database model.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, ForeignKey, String, Uuid
+from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from vaultdocs.db.base import Base
@@ -68,6 +69,67 @@ class Document(Base, TimestampMixin):
 
     content_type: Mapped[str | None] = mapped_column(
         String(255),
+        nullable=True,
+    )
+
+    # ------------------------------------------------------------------
+    # Document intelligence (extraction / tagging / summary).
+    # Nullable without server defaults: NULL means "never attempted" (e.g.
+    # no file uploaded yet, or a legacy row predating this feature).
+    # All columns are additive and backward compatible.
+    # ------------------------------------------------------------------
+
+    extraction_status: Mapped[str | None] = mapped_column(
+        String(24),
+        nullable=True,
+    )
+
+    extracted_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    extracted_char_count: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    page_count: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    tags: Mapped[list[str] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
+    summary: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # Which provider produced ``summary`` ("extractive", "openai_compatible").
+    # Keeps generated summaries distinguishable from extracted facts.
+    summary_source: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    extraction_error: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+    )
+
+    extracted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # SHA-256 of the stored file bytes; used to skip redundant re-extraction
+    # (idempotency) after re-uploads of identical content.
+    content_fingerprint: Mapped[str | None] = mapped_column(
+        String(64),
         nullable=True,
     )
 

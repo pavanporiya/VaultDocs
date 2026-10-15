@@ -61,6 +61,10 @@ class DocumentResponse(BaseModel):
     original_filename: str | None = None
     file_size: int | None = None
     content_type: str | None = None
+    extraction_status: str | None = Field(
+        default=None,
+        description="Document intelligence status (pending/processing/completed/...).",
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -191,3 +195,107 @@ class DocumentVersionResponse(BaseModel):
     file_size: int
     content_type: str
     created_at: datetime
+
+
+class DocumentIntelligenceResponse(BaseModel):
+    """
+    Response schema for document intelligence (extraction, tags, summary).
+
+    Readable by anyone with read access to the document (owner and share
+    recipients): it exposes derived text metadata only — never raw file bytes
+    or download paths. Includes the same computed permission flags as
+    ``DocumentResponse`` so the UI can gate the re-index action.
+    """
+
+    document_id: UUID = Field(
+        description="ID of the document this intelligence belongs to.",
+    )
+
+    status: str | None = Field(
+        default=None,
+        description=(
+            "Extraction status: pending | processing | completed | unsupported | "
+            "encrypted | no_text | failed. None means no file was ever uploaded."
+        ),
+    )
+
+    file_ready: bool = Field(
+        default=False,
+        description="True when a file is stored for this document.",
+    )
+
+    page_count: int | None = Field(
+        default=None,
+        description="Page count when available (PDF).",
+    )
+
+    char_count: int | None = Field(
+        default=None,
+        description="Number of extracted characters persisted.",
+    )
+
+    tags: list[str] = Field(
+        default_factory=list,
+        description="Generated tags (format tag + content keywords).",
+    )
+
+    summary: str | None = Field(
+        default=None,
+        description="Generated summary. None when extraction produced no text.",
+    )
+
+    summary_source: str | None = Field(
+        default=None,
+        description="Provider that produced the summary (traceability).",
+    )
+
+    key_points: list[str] = Field(
+        default_factory=list,
+        description="Verbatim high-salience sentences quoted from the source text.",
+    )
+
+    error: str | None = Field(
+        default=None,
+        description="Human-readable extraction failure reason, if any.",
+    )
+
+    extracted_at: datetime | None = Field(
+        default=None,
+        description="When extraction last completed.",
+    )
+
+    # Computed authorization metadata for the requesting user (same contract
+    # as DocumentResponse: owner defaults, overridden for share recipients).
+    is_owner: bool = Field(default=True, description="True if the requester owns this document.")
+    permission: DocumentPermission = Field(
+        default="owner",
+        description='Effective permission: "owner" | "viewer".',
+    )
+    can_edit: bool = Field(default=True, description="True if the user may modify the document.")
+    can_download: bool = Field(default=True, description="False for view-only recipients.")
+    can_share: bool = Field(default=True, description="True only for the document owner.")
+    can_delete: bool = Field(default=True, description="True only for the document owner.")
+
+
+class DocumentSearchHit(DocumentResponse):
+    """
+    A content-search hit: document metadata plus relevance details.
+
+    Only documents the requester can read (owned or actively shared) are ever
+    returned; permission filtering happens before scoring.
+    """
+
+    score: float = Field(
+        default=0.0,
+        description="Relevance score (higher is a better match).",
+    )
+
+    snippet: str = Field(
+        default="",
+        description="Short excerpt around the best-matching chunk.",
+    )
+
+    matched_chunk: int | None = Field(
+        default=None,
+        description="Index of the best-matching chunk within the document.",
+    )

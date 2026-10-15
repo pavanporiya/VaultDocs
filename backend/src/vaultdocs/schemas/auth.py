@@ -67,3 +67,61 @@ class UserResponse(BaseModel):
     is_active: bool
 
     is_superuser: bool
+
+    is_verified: bool = False
+
+
+class RegisterResponse(BaseModel):
+    """
+    Response returned on successful registration.
+    """
+
+    id: UUID
+    full_name: str
+    email: EmailStr
+    is_active: bool
+    is_verified: bool
+    message: str
+
+
+class VerifyOtpRequest(BaseModel):
+    """
+    Request body for verifying an email OTP.
+    """
+
+    email: EmailStr
+    otp: str = Field(
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="6-digit numeric verification code.",
+    )
+
+
+class VerifyOtpResponse(BaseModel):
+    """
+    Response returned when an OTP is successfully verified.
+    """
+
+    message: str
+    access_token: str
+    token_type: str = "bearer"  # noqa: S105
+    user: UserResponse
+
+
+class ResendOtpRequest(BaseModel):
+    """
+    Request body for resending an email OTP.
+    """
+
+    email: EmailStr
+
+
+class ResendOtpResponse(BaseModel):
+    """
+    Response returned when an OTP resend is triggered.
+    """
+
+    message: str
+    email: EmailStr
+    resend_cooldown_seconds: int

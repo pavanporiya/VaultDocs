@@ -6,7 +6,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +28,9 @@ if TYPE_CHECKING:
     from vaultdocs.models.document import Document
 from vaultdocs.schemas.document import (
     DocumentCreate,
+    DocumentIntelligenceResponse,
     DocumentResponse,
+    DocumentSearchHit,
     DocumentUpdate,
     DocumentVersionResponse,
     SharedDocumentResponse,
@@ -39,6 +51,12 @@ from vaultdocs.services.document import (
     update_document,
     upload_document_file,
 )
+from vaultdocs.services.intelligence import (
+    build_key_points,
+    queue_document_intelligence,
+    run_document_intelligence,
+)
+from vaultdocs.services.search import search_documents_by_content
 from vaultdocs.services.share import (
     get_user_download_permission,
     user_can_access_document,
@@ -242,6 +260,7 @@ async def list_shared_with_me(
             shared_by_name=owner.full_name,
             shared_by_email=owner.email,
             shared_at=share.created_at,
+            extraction_status=doc.extraction_status,
             is_owner=False,
             permission="viewer",
             can_edit=False,
@@ -278,6 +297,179 @@ async def search_documents(
         offset=offset,
     )
     return [DocumentResponse.model_validate(d) for d in documents]
+
+
+@router.get(
+    "/search/content",
+    response_model=list[DocumentSearchHit],
+)
+async def search_document_content(
+    q: str = Query(min_length=1, max_length=200),
+    limit: int | None = Query(default=20, ge=1, le=100),
+    offset: int | None = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[DocumentSearchHit]:
+    """
+    Content search over extracted document text (chunked, permission-filtered).
+
+    Only documents the requester owns or that are actively shared with them
+    are ever returned — authorization happens in the candidate query before
+    any scoring. When nothing matches in extracted content, the endpoint
+    gracefully falls back to the pre-existing name-based keyword search so
+    callers still get useful results for un-indexed documents.
+    """
+    matches = await search_documents_by_content(
+        db=db,
+        user_id=current_user.id,
+        query=q,
+        limit=limit,
+        offset=offset,
+    )
+
+    if matches:
+        hits: list[DocumentSearchHit] = []
+        for match in matches:
+            payload = DocumentResponse.model_validate(match.document).model_dump()
+            if match.document.owner_id != current_user.id:
+                # Storage paths are never disclosed to share recipients —
+                # mirrors the existing /shared endpoint convention — and
+                # recipients always get viewer flags (never owner flags).
+                payload["file_path"] = None
+                can_download = await get_user_download_permission(
+                    db=db,
+                    document=match.document,
+                    user=current_user,
+                )
+                payload.update(viewer_permission_flags(can_download=can_download))
+            hits.append(
+                DocumentSearchHit(
+                    **payload,
+                    score=match.score,
+                    snippet=match.snippet,
+                    matched_chunk=match.chunk_index,
+                )
+            )
+        return hits
+
+    # Fallback: name-based keyword search (pre-existing behavior, same
+    # owner-only scope as the /search endpoint).
+    fallback = await search_user_documents(
+        db=db,
+        owner_id=current_user.id,
+        q=q,
+        limit=limit,
+        offset=offset,
+    )
+    return [
+        DocumentSearchHit(
+            **DocumentResponse.model_validate(document).model_dump(),
+            score=0.0,
+            snippet="",
+            matched_chunk=None,
+        )
+        for document in fallback
+    ]
+
+
+@router.get(
+    "/{document_id}/intelligence",
+    response_model=DocumentIntelligenceResponse,
+)
+async def get_document_intelligence(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DocumentIntelligenceResponse:
+    """
+    Fetch document intelligence (extraction status, tags, summary, key points).
+
+    Readable by anyone with read access to the document (owner or share
+    recipient). Exposes derived text metadata only — never raw file bytes.
+    """
+    document, flags = await _get_document_for_request(
+        db=db,
+        document_id=document_id,
+        current_user=current_user,
+    )
+    if document is None:
+        raise _raise_not_found()
+
+    response = DocumentIntelligenceResponse(
+        document_id=document.id,
+        status=document.extraction_status,
+        file_ready=document.file_path is not None,
+        page_count=document.page_count,
+        char_count=document.extracted_char_count,
+        tags=list(document.tags or []),
+        summary=document.summary,
+        summary_source=document.summary_source,
+        key_points=build_key_points(document.extracted_text or ""),
+        error=document.extraction_error,
+        extracted_at=document.extracted_at,
+    )
+    for field, value in flags.items():
+        setattr(response, field, value)
+    return response
+
+
+@router.post(
+    "/{document_id}/intelligence/reindex",
+    response_model=DocumentIntelligenceResponse,
+)
+async def reindex_document_intelligence(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DocumentIntelligenceResponse:
+    """
+    Re-run extraction/tagging/summary for a document the user owns.
+
+    Executes the (idempotent, size-capped) extraction synchronously so the
+    caller gets the refreshed result immediately; uploads themselves never
+    block — they queue the job as a background task instead. Recipients
+    (view-only or download-enabled) get 403: re-indexing mutates derived
+    state on the document and is owner-only.
+    """
+    document = await get_document_by_id(db=db, document_id=document_id)
+    if document is None:
+        raise _raise_not_found()
+
+    if document.owner_id != current_user.id:
+        if await user_can_access_document(db=db, document=document, user=current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the document owner can re-index document intelligence.",
+            )
+        raise _raise_not_found()
+
+    if not document.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No file uploaded for this document yet.",
+        )
+
+    # Run synchronously here so the caller receives the fresh result; the
+    # job is idempotent and skips work when the file is unchanged.
+    await run_document_intelligence(document.id, force=True)
+    await db.refresh(document)
+
+    response = DocumentIntelligenceResponse(
+        document_id=document.id,
+        status=document.extraction_status,
+        file_ready=document.file_path is not None,
+        page_count=document.page_count,
+        char_count=document.extracted_char_count,
+        tags=list(document.tags or []),
+        summary=document.summary,
+        summary_source=document.summary_source,
+        key_points=build_key_points(document.extracted_text or ""),
+        error=document.extraction_error,
+        extracted_at=document.extracted_at,
+    )
+    for field, value in owner_permission_flags().items():
+        setattr(response, field, value)
+    return response
 
 
 @router.get(
@@ -401,6 +593,7 @@ async def delete_existing_document(
 )
 async def upload_document(
     document_id: UUID,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -410,6 +603,9 @@ async def upload_document(
 
     Non-owners are rejected: outsiders with a safe 404, share recipients
     with a clean 403 Forbidden.
+
+    After a successful upload, text extraction/tagging/summary runs in the
+    background (non-blocking) and is tracked via ``extraction_status``.
     """
     document = await get_document_by_id(
         db=db,
@@ -432,12 +628,16 @@ async def upload_document(
             document=document,
             file=file,
         )
-        return DocumentResponse.model_validate(updated_document)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    # Queue AFTER commit so the job reads a consistent committed row.
+    background_tasks.add_task(queue_document_intelligence, updated_document.id)
+
+    return DocumentResponse.model_validate(updated_document)
 
 
 @router.get(

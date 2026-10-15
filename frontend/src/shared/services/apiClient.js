@@ -52,6 +52,11 @@ const parseErrorMessage = (status, data) => {
   if (data && typeof data.detail === 'string') {
     return data.detail;
   }
+  if (data && typeof data.detail === 'object' && data.detail !== null) {
+    if (typeof data.detail.message === 'string') {
+      return data.detail.message;
+    }
+  }
   if (data && Array.isArray(data.detail)) {
     // FastAPI validation errors (422)
     return data.detail.map((err) => `${err.loc?.join('.') || 'field'}: ${err.msg}`).join(', ');

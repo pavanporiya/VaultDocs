@@ -45,14 +45,32 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (fullName, email, password) => {
-    const userData = await apiClient.post('/auth/register', {
+    const registerResponse = await apiClient.post('/auth/register', {
       full_name: fullName,
       email,
       password,
     });
-    // Auto login after registration
-    await login(email, password);
-    return userData;
+    return registerResponse;
+  };
+
+  const verifyOtp = async (email, otp) => {
+    const response = await apiClient.post('/auth/verify-otp', { email, otp });
+    if (response && response.access_token) {
+      setAuthToken(response.access_token);
+      setTokenState(response.access_token);
+      if (response.user) {
+        setUser(response.user);
+      } else {
+        const userData = await apiClient.get('/auth/me');
+        setUser(userData);
+      }
+      return response;
+    }
+    throw new Error('Verification failed: Access token was not returned.');
+  };
+
+  const resendOtp = async (email) => {
+    return apiClient.post('/auth/resend-otp', { email });
   };
 
   const logout = () => {
@@ -68,6 +86,8 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     login,
     register,
+    verifyOtp,
+    resendOtp,
     logout,
     refreshUser: fetchCurrentUser,
   };

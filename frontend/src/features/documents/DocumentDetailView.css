@@ -212,3 +212,89 @@
   justify-content: flex-start;
   margin-top: -0.5rem;
 }
+
+/* Document intelligence panel */
+.vd-docdetail-intel-wrap {
+  margin-top: 1.5rem;
+}
+
+.vd-docdetail-intel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vd-docdetail-intel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vd-docdetail-intel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-main, #f8fafc);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vd-docdetail-intel-source {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.vd-docdetail-intel-summary {
+  margin: 0;
+  color: var(--color-text-muted, #cbd5e1);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.vd-docdetail-intel-points {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--color-text-muted, #cbd5e1);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.vd-docdetail-intel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.vd-docdetail-intel-muted {
+  margin: 0;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 0.875rem;
+}
+
+.vd-docdetail-intel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 0.8125rem;
+}
+
+.vd-docdetail-intel-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.vd-docdetail-intel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 0.875rem;
+  text-align: center;
+}
