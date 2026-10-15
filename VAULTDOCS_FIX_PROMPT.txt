@@ -1,0 +1,77 @@
+CAVEMAN MODE — VAULTDOCS BACKEND GAP CLOSURE & FULL-STACK INTEGRATION
+
+OBJECTIVE:
+Implement the 3 genuine backend feature gaps identified during the live browser QA audit, and integrate them with the existing frontend without breaking any existing working functionality.
+
+BACKGROUND & AUDIT CONTEXT:
+The live browser end-to-end QA audit confirmed that the VaultDocs core authentication, routing, dashboard, folders/explorer, document lifecycle, search, versioning, preview, and responsive design are 100% working with zero runtime errors.
+However, 3 backend feature limitations were identified that prevent full feature completeness:
+1. No "Shared with me" listing endpoint (frontend currently has to rely on direct document UUID lookups).
+2. ShareResponse only returns recipient user UUID (shared_with_user_id), not their email.
+3. No server-side user preferences or profile update endpoints (preferences currently persist only in browser localStorage).
+
+SCOPE OF WORK:
+
+==================================================
+TASK 1: BACKEND "SHARED WITH ME" DOCUMENTS ENDPOINT
+==================================================
+Backend:
+- Add endpoint: GET /v1/documents/shared (or /v1/documents/shared-with-me) in backend/src/api/v1/endpoints/documents.py (or sharing router).
+- Authenticated user retrieves list of DocumentResponse objects that have been shared with their user ID via DocumentShare records.
+- Proper pagination / list return schema matching existing GET /v1/documents.
+- Add test coverage in backend tests.
+
+Frontend Integration:
+- In frontend/src/features/shared_docs/SharedView.jsx:
+  - Query the new GET /v1/documents/shared endpoint when authenticated.
+  - Render the list of shared documents in the table with document name, owner, size, and date.
+  - Preserve the manual UUID search input as a fallback search option.
+
+==================================================
+TASK 2: RECIPIENT EMAIL IN SHARERESPONSE
+==================================================
+Backend:
+- Update ShareResponse schema in backend schemas to include:
+  - shared_with_email: Optional[str] or str (or user_email: str)
+- Update GET /v1/documents/{document_id}/shares and POST /v1/documents/{document_id}/shares to join or query the User table and populate the recipient's email in the response.
+- Update relevant backend tests.
+
+Frontend Integration:
+- In frontend/src/features/documents/SharesModal.jsx:
+  - Display the recipient's actual email address in the shares list table instead of raw user UUIDs.
+  - Retain the revoke share button and creation form.
+
+==================================================
+TASK 3: USER PROFILE & PREFERENCES API
+==================================================
+Backend:
+- Add PATCH /v1/auth/me (or PUT /v1/auth/me):
+  - Request schema: full_name (optional)
+  - Updates current user's profile information.
+- Add preferences support:
+  - Add GET /v1/users/me/preferences and PUT /v1/users/me/preferences (or store preferences json on User model / user_preferences table).
+  - Returns and stores user preference settings (e.g. theme, density, notifications).
+
+Frontend Integration:
+- In frontend/src/features/account/ProfileView.jsx:
+  - Allow user to edit their full name and save via PATCH /v1/auth/me.
+  - Refresh auth context on save.
+- In frontend/src/features/account/SettingsView.jsx:
+  - Load preferences from backend API on mount; save preferences to backend API on change.
+  - Retain localStorage as offline fallback.
+
+==================================================
+STRICT CAVEMAN RULES & CONSTRAINTS:
+==================================================
+1. DO NOT rewrite the frontend architecture.
+2. DO NOT modify .env or database connection settings.
+3. DO NOT install unnecessary third-party packages.
+4. PRESERVE all existing working flows:
+   - Dashboard metrics & layout
+   - Folder creation, rename, delete, navigation
+   - Document upload, rename, replace, version history, download, preview
+   - Authentication modal, login, register, logout
+5. Maintain backward compatibility on all existing API contracts.
+6. Run backend test suite (pytest) and ensure all tests pass.
+7. Run frontend build (npm run build) to ensure zero lint or TypeScript/JSX build errors.
+8. Perform a final verification test verifying all 3 new capabilities.
