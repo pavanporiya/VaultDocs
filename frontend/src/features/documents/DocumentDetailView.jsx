@@ -658,6 +658,143 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
     );
   };
 
+  const renderIntelligence = () => {
+    if (intelState === 'loading' && !intelligence) {
+      return (
+        <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+          <Loader text="Loading document intelligence..." />
+        </div>
+      );
+    }
+
+    if (intelState === 'error') {
+      return (
+        <div className="vd-docdetail-intel-empty" role="alert">
+          <FileWarning size={28} />
+          <span>{intelError || 'Document intelligence could not be loaded.'}</span>
+          <Button variant="outline" size="sm" icon={RefreshCw} onClick={fetchIntelligence}>
+            Retry
+          </Button>
+        </div>
+      );
+    }
+
+    if (!intelligence) return null;
+
+    const { status } = intelligence;
+
+    if (!intelligence.file_ready || !status) {
+      return (
+        <div className="vd-docdetail-intel-empty">
+          <FileWarning size={28} />
+          <span>
+            No file uploaded yet — upload a file to extract text, generate tags, and build a
+            summary.
+          </span>
+        </div>
+      );
+    }
+
+    if (status === 'pending' || status === 'processing') {
+      return (
+        <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+          <Loader text="Analyzing document (extracting text, tags, summary)..." />
+        </div>
+      );
+    }
+
+    if (status !== 'completed') {
+      const statusLabels = {
+        unsupported: 'Unsupported file type for text extraction.',
+        encrypted: 'The PDF is encrypted and could not be read.',
+        no_text: 'No extractable text found (scanned or image-only file).',
+        failed: 'Text extraction failed for this file.',
+      };
+      return (
+        <div className="vd-docdetail-intel-empty" role="status">
+          <FileWarning size={28} />
+          <span>{intelligence.error || statusLabels[status] || 'Extraction unavailable.'}</span>
+          {isOwner && (
+            <Button variant="outline" size="sm" icon={RefreshCw} loading={reindexing} onClick={handleReindex}>
+              Re-run Extraction
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="vd-docdetail-intel-body">
+        {intelligence.summary ? (
+          <div className="vd-docdetail-intel-section">
+            <h4 className="vd-docdetail-intel-heading">
+              Summary
+              {intelligence.summary_source && (
+                <span className="vd-badge vd-badge-readonly vd-docdetail-intel-source">
+                  {intelligence.summary_source === 'extractive'
+                    ? 'local extractive'
+                    : intelligence.summary_source}
+                </span>
+              )}
+            </h4>
+            <p className="vd-docdetail-intel-summary">{intelligence.summary}</p>
+          </div>
+        ) : (
+          <div className="vd-docdetail-intel-empty">
+            <FileWarning size={24} />
+            <span>No summary available — extraction produced no text.</span>
+          </div>
+        )}
+
+        {intelligence.key_points && intelligence.key_points.length > 0 && (
+          <div className="vd-docdetail-intel-section">
+            <h4 className="vd-docdetail-intel-heading">Key Points</h4>
+            <ul className="vd-docdetail-intel-points">
+              {intelligence.key_points.map((point, index) => (
+                <li key={`point-${index}`}>{point}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="vd-docdetail-intel-section">
+          <h4 className="vd-docdetail-intel-heading">Tags</h4>
+          {intelligence.tags && intelligence.tags.length > 0 ? (
+            <div className="vd-docdetail-intel-tags">
+              {intelligence.tags.map((tag) => (
+                <span className="vd-badge vd-badge-readonly" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="vd-docdetail-intel-muted">No tags generated.</p>
+          )}
+        </div>
+
+        <div className="vd-docdetail-intel-meta">
+          {typeof intelligence.page_count === 'number' && (
+            <span>{intelligence.page_count} pages</span>
+          )}
+          {typeof intelligence.char_count === 'number' && (
+            <span>{intelligence.char_count.toLocaleString()} chars extracted</span>
+          )}
+          {intelligence.extracted_at && (
+            <span>Analyzed {formatDate(intelligence.extracted_at, { withTime: true })}</span>
+          )}
+        </div>
+
+        {isOwner && (
+          <div className="vd-docdetail-intel-actions">
+            <Button variant="ghost" size="sm" icon={RefreshCw} loading={reindexing} onClick={handleReindex}>
+              Re-index
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ------------------------------------------------------------------
   // Guard states
   // ------------------------------------------------------------------
@@ -908,6 +1045,28 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
               Printing is disabled for view-only documents.
             </div>
           )}
+        </Card>
+      </div>
+
+      {/* Document intelligence: extraction status, summary, key points, tags */}
+      <div className="vd-docdetail-intel-wrap">
+        <Card
+          title="Document Intelligence"
+          subtitle="Extracted text, generated tags, and summary"
+          elevation="sm"
+          headerAction={
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Sparkles}
+              onClick={fetchIntelligence}
+              disabled={intelState === 'loading'}
+            >
+              Refresh
+            </Button>
+          }
+        >
+          {renderIntelligence()}
         </Card>
       </div>
 

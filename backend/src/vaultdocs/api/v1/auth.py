@@ -122,6 +122,14 @@ async def verify_otp(
             user=UserResponse.model_validate(user),
         )
 
+    except EmailDeliveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Unable to send verification email. "
+                "Please verify email server configuration and try again."
+            ),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
