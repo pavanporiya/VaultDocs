@@ -11,6 +11,7 @@
   border-radius: var(--radius-md, 8px);
   color: var(--color-danger, #ef4444);
   font-size: 0.875rem;
+  animation: vd-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vd-auth-actions {

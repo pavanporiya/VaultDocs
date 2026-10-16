@@ -1,8 +1,10 @@
-import React, { useId } from 'react';
+import React, { useId, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import './Input.css';
 
 /**
- * Reusable form Input component supporting labels, helper text, error state, and accessibility.
+ * Reusable form Input component supporting labels, helper text, error state,
+ * password visibility toggling, and accessibility.
  */
 export const Input = ({
   label,
@@ -24,6 +26,10 @@ export const Input = ({
   const inputId = id || `input-${generatedId}`;
   const errorId = `${inputId}-error`;
   const helperId = `${inputId}-helper`;
+  const [showPassword, setShowPassword] = useState(false);
+
+  const isPassword = type === 'password';
+  const resolvedType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (
     <div className={`vd-input-group ${error ? 'vd-input-group--error' : ''} ${className}`}>
@@ -43,17 +49,35 @@ export const Input = ({
         <input
           id={inputId}
           name={name}
-          type={type}
+          type={resolvedType}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`vd-input ${Icon ? 'vd-input--has-icon' : ''}`}
+          className={`vd-input ${Icon ? 'vd-input--has-icon' : ''} ${isPassword ? 'vd-input--has-toggle' : ''}`}
           aria-invalid={!!error}
           aria-describedby={error ? errorId : helperText ? helperId : undefined}
           {...props}
         />
+        {isPassword && (
+          <button
+            type="button"
+            className="vd-input-password-toggle"
+            onClick={() => setShowPassword((prev) => !prev)}
+            disabled={disabled}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            tabIndex={0}
+          >
+            {showPassword ? (
+              <EyeOff size={18} aria-hidden="true" />
+            ) : (
+              <Eye size={18} aria-hidden="true" />
+            )}
+          </button>
+        )}
       </div>
 
       {error && (

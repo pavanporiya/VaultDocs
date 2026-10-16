@@ -70,7 +70,7 @@ export const MainLayout = ({
           />
 
           <main className="vd-main-layout__content" id="main-content">
-            <div className="vd-main-layout__container">{children}</div>
+            <div key={activeNavItem} className="vd-main-layout__container vd-page-enter">{children}</div>
           </main>
         </div>
       </div>

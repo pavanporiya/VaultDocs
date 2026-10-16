@@ -72,7 +72,7 @@
   font-weight: 500;
   cursor: pointer;
   text-align: left;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .vd-sidebar__icon {
@@ -80,7 +80,7 @@
   align-items: center;
   justify-content: center;
   color: var(--color-text-subtle);
-  transition: color var(--transition-fast);
+  transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
 .vd-sidebar__label {
@@ -94,6 +94,7 @@
   border-radius: var(--radius-full);
   background-color: var(--color-primary-light);
   color: var(--color-primary);
+  transition: transform var(--transition-fast);
 }
 
 .vd-sidebar__link:hover {
@@ -101,8 +102,17 @@
   color: var(--color-text-main);
 }
 
+.vd-sidebar__link:hover:not(.vd-sidebar__link--active) {
+  transform: translateX(3px);
+}
+
 .vd-sidebar__link:hover .vd-sidebar__icon {
   color: var(--color-primary);
+  transform: scale(1.08);
+}
+
+.vd-sidebar__link:active {
+  transform: scale(0.98);
 }
 
 .vd-sidebar__link--active {
@@ -122,6 +132,7 @@
   height: 60%;
   border-radius: var(--radius-full);
   background-color: var(--color-primary);
+  transition: height var(--transition-normal), opacity var(--transition-normal);
 }
 
 .vd-sidebar__link--active .vd-sidebar__icon {

@@ -84,6 +84,27 @@ class User(Base, TimestampMixin):
         nullable=False,
     )
 
+    reset_token_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    reset_token_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    reset_token_last_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    reset_token_failed_attempts: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
     # Free-form user preferences (theme, density, notifications, ...).
     # Nullable without server default: application code treats NULL as {}.
     preferences: Mapped[dict[str, Any] | None] = mapped_column(

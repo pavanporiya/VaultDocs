@@ -125,3 +125,75 @@ class ResendOtpResponse(BaseModel):
     message: str
     email: EmailStr
     resend_cooldown_seconds: int
+
+
+class ForgotPasswordRequest(BaseModel):
+    """
+    Request body for initiating a password reset.
+    """
+
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    """
+    Response returned when a password reset is requested.
+    """
+
+    message: str
+
+
+class VerifyResetTokenRequest(BaseModel):
+    """
+    Request body for validating a password reset token.
+    """
+
+    token: str = Field(
+        min_length=6,
+        max_length=6,
+        pattern=r"^[A-Za-z0-9]{6}$",
+        description="6-character alphanumeric password reset token.",
+    )
+    email: EmailStr | None = Field(
+        default=None,
+        description="Optional registered email address for scoped validation and rate limiting.",
+    )
+
+
+class VerifyResetTokenResponse(BaseModel):
+    """
+    Response returned when a password reset token is verified.
+    """
+
+    valid: bool = True
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """
+    Request body for resetting a password using a reset token.
+    """
+
+    token: str = Field(
+        min_length=6,
+        max_length=6,
+        pattern=r"^[A-Za-z0-9]{6}$",
+        description="6-character alphanumeric password reset token.",
+    )
+    new_password: str = Field(
+        min_length=8,
+        max_length=128,
+        description="New account password.",
+    )
+    email: EmailStr | None = Field(
+        default=None,
+        description="Optional registered email address for scoped validation and rate limiting.",
+    )
+
+
+class ResetPasswordResponse(BaseModel):
+    """
+    Response returned when a password has been successfully reset.
+    """
+
+    message: str

@@ -13,8 +13,11 @@ from sqlalchemy import func, select
 
 from vaultdocs.core.security import (
     create_access_token,
+    generate_password_reset_token,
     hash_password,
+    hash_password_reset_token,
     verify_password,
+    verify_password_reset_token_hash,
 )
 from vaultdocs.core.settings import settings
 from vaultdocs.models.user import User
@@ -23,7 +26,10 @@ from vaultdocs.schemas.auth import (
     RegisterUserRequest,
     TokenResponse,
 )
-from vaultdocs.services.email import send_verification_email
+from vaultdocs.services.email import (
+    send_password_reset_email,
+    send_verification_email,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -334,3 +340,141 @@ async def login_user(
         access_token=access_token,
         token_type="bearer",  # noqa: S106
     )
+
+
+async def request_password_reset(
+    db: AsyncSession,
+    email: str,
+) -> None:
+    """
+    Initiate a password reset flow for the given email address.
+
+    Generates a secure, 6-character uppercase alphanumeric token,
+    stores its secure hash, enforces rate limiting, and dispatches an email.
+    If the email is not found, silently completes to avoid email enumeration.
+    """
+    user = await get_user_by_email(db, email)
+    if user is None or not user.is_active:
+        return
+
+    now = datetime.now(UTC)
+
+    # Enforce rate limiting on reset requests
+    if user.reset_token_last_sent_at is not None:
+        elapsed = (now - user.reset_token_last_sent_at).total_seconds()
+        if elapsed < settings.password_reset_resend_cooldown_seconds:
+            remaining = int(settings.password_reset_resend_cooldown_seconds - elapsed)
+            raise ValueError(
+                f"Please wait {remaining} second(s) before requesting another password reset."
+            )
+
+    reset_token = generate_password_reset_token()
+    user.reset_token_hash = hash_password_reset_token(reset_token)
+    user.reset_token_expires_at = now + timedelta(minutes=settings.password_reset_expire_minutes)
+    user.reset_token_last_sent_at = now
+    user.reset_token_failed_attempts = 0
+
+    await db.commit()
+
+    send_password_reset_email(
+        to_email=user.email,
+        recipient_name=user.full_name,
+        reset_token=reset_token,
+    )
+
+
+async def verify_password_reset_token(
+    db: AsyncSession,
+    token: str,
+    email: str | None = None,
+) -> User:
+    """
+    Validate a 6-character password reset token.
+
+    Checks expiration, attempt limits, and single-use status using constant-time comparison.
+    Token is normalized to uppercase for case-insensitive verification.
+    """
+    clean_token = token.strip().upper()
+    if len(clean_token) != 6 or not clean_token.isalnum():
+        raise ValueError("Invalid password reset token format. Must be 6 alphanumeric characters.")
+
+    user: User | None = None
+    if email:
+        user = await get_user_by_email(db, email.strip().lower())
+        if user is None or not user.is_active:
+            raise ValueError("Invalid password reset token or account is inactive.")
+    else:
+        token_hash = hash_password_reset_token(clean_token)
+        user = await db.scalar(select(User).where(User.reset_token_hash == token_hash))
+        if user is None or not user.is_active:
+            raise ValueError("Password reset token has already been used or is invalid.")
+
+    if not user.reset_token_hash or not user.reset_token_expires_at:
+        raise ValueError("Password reset token has already been used or is invalid.")
+
+    now = datetime.now(UTC)
+
+    # Check expiration
+    if now > user.reset_token_expires_at:
+        user.reset_token_hash = None
+        user.reset_token_expires_at = None
+        await db.commit()
+        raise ValueError("Password reset token has expired. Please request a new link.")
+
+    # Check attempt limits
+    if user.reset_token_failed_attempts >= settings.password_reset_max_failed_attempts:
+        user.reset_token_hash = None
+        user.reset_token_expires_at = None
+        await db.commit()
+        raise ValueError(
+            "Too many failed attempts. This reset token has been invalidated. "
+            "Please request a new token."
+        )
+
+    # Constant-time comparison
+    if not verify_password_reset_token_hash(clean_token, user.reset_token_hash):
+        user.reset_token_failed_attempts += 1
+        remaining = max(
+            0, settings.password_reset_max_failed_attempts - user.reset_token_failed_attempts
+        )
+        if remaining == 0:
+            user.reset_token_hash = None
+            user.reset_token_expires_at = None
+            await db.commit()
+            raise ValueError(
+                "Too many failed attempts. This reset token has been invalidated. "
+                "Please request a new token."
+            )
+        await db.commit()
+        raise ValueError(f"Invalid password reset token. {remaining} attempt(s) remaining.")
+
+    return user
+
+
+async def reset_user_password(
+    db: AsyncSession,
+    token: str,
+    new_password: str,
+    email: str | None = None,
+) -> User:
+    """
+    Reset a user's password using a valid, single-use 6-character reset token.
+    Invalidates the reset token immediately upon success.
+    """
+    if len(new_password) < 8:
+        raise ValueError("Password must be at least 8 characters long.")
+    if len(new_password) > 128:
+        raise ValueError("Password cannot exceed 128 characters.")
+
+    user = await verify_password_reset_token(db, token=token, email=email)
+
+    user.password_hash = hash_password(new_password)
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
+    user.reset_token_failed_attempts = 0
+    user.is_verified = True
+
+    await db.commit()
+    await db.refresh(user)
+
+    return user

@@ -73,6 +73,25 @@ export const AuthProvider = ({ children }) => {
     return apiClient.post('/auth/resend-otp', { email });
   };
 
+  const forgotPassword = async (email) => {
+    return apiClient.post('/auth/forgot-password', { email });
+  };
+
+  const verifyResetToken = async (token, email) => {
+    return apiClient.post('/auth/verify-reset-token', {
+      token: token ? token.trim().toUpperCase() : '',
+      email: email ? email.trim() : undefined,
+    });
+  };
+
+  const resetPassword = async (token, newPassword, email) => {
+    return apiClient.post('/auth/reset-password', {
+      token: token ? token.trim().toUpperCase() : '',
+      new_password: newPassword,
+      email: email ? email.trim() : undefined,
+    });
+  };
+
   const logout = () => {
     setAuthToken(null);
     setTokenState(null);
@@ -88,6 +107,9 @@ export const AuthProvider = ({ children }) => {
     register,
     verifyOtp,
     resendOtp,
+    forgotPassword,
+    verifyResetToken,
+    resetPassword,
     logout,
     refreshUser: fetchCurrentUser,
   };

@@ -170,6 +170,45 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("otp_max_failed_attempts", "otp_max_attempts"),
     )
 
+    password_reset_expire_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=120,
+        description="Password reset token validity period in minutes.",
+        validation_alias=AliasChoices(
+            "password_reset_expire_minutes",
+            "reset_token_expire_minutes",
+        ),
+    )
+
+    password_reset_resend_cooldown_seconds: int = Field(
+        default=60,
+        ge=0,
+        le=600,
+        description="Minimum seconds required between password reset requests.",
+        validation_alias=AliasChoices(
+            "password_reset_resend_cooldown_seconds",
+            "reset_cooldown_seconds",
+        ),
+    )
+
+    password_reset_max_failed_attempts: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum failed reset token verification attempts before invalidation.",
+        validation_alias=AliasChoices(
+            "password_reset_max_failed_attempts",
+            "reset_max_attempts",
+        ),
+    )
+
+    frontend_url: str = Field(
+        default="http://localhost:5173",
+        description="Frontend base URL for links in emails.",
+        validation_alias=AliasChoices("frontend_url", "app_url", "client_url"),
+    )
+
     # -------------------------------------------------------------------------
     # Storage Settings
     # -------------------------------------------------------------------------

@@ -248,10 +248,40 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
   }, [document]);
 
   // ------------------------------------------------------------------
+  // Authorization flags (server-authoritative, with legacy fallback)
+  // ------------------------------------------------------------------
+  const perms = resolvePermissions(document);
+  const isOwner = perms.isOwner;
+  const canEdit = perms.canEdit;
+  const canDownload = perms.canDownload;
+
+  // Intercept browser print and save keyboard shortcuts for view-only users
+  useEffect(() => {
+    if (canDownload) return undefined;
+
+    const handleKeyDown = (e) => {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [canDownload]);
+
+  // ------------------------------------------------------------------
   // Actions
   // ------------------------------------------------------------------
   const handleDownload = async () => {
     if (!document) return;
+    if (!canDownload) {
+      toast.error('Download disabled: View-only access.', 'Permission Denied');
+      return;
+    }
     setDownloading(true);
     try {
       const { blob, filename } = await downloadFile(`/documents/${document.id}/download`);
@@ -259,9 +289,11 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
       toast.success(`Downloaded "${filename || document.name}"`);
     } catch (err) {
       const message =
-        err?.status === 404
-          ? 'No file has been uploaded for this document yet.'
-          : err.message || 'Download failed.';
+        err?.status === 403
+          ? 'Download disabled: you have view-only access to this document.'
+          : err?.status === 404
+            ? 'No file has been uploaded for this document yet.'
+            : err.message || 'Download failed.';
       toast.error(message, 'Download Error');
     } finally {
       setDownloading(false);
@@ -343,13 +375,6 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
     setIsMoveModalOpen(true);
   };
 
-  // ------------------------------------------------------------------
-  // Authorization flags (server-authoritative, with legacy fallback)
-  // ------------------------------------------------------------------
-  const perms = resolvePermissions(document);
-  const isOwner = perms.isOwner;
-  const canEdit = perms.canEdit;
-  const canDownload = perms.canDownload;
 
   const openSharesModal = () => {
     if (!isOwner) return;
@@ -454,29 +479,45 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
     if (previewState !== 'ready') return null;
 
     if (kind === 'pdf') {
+      const pdfUrl = canDownload
+        ? previewUrlRef.current
+        : `${previewUrlRef.current}#toolbar=0&navpanes=0`;
+
       return (
-        <iframe
-          title={`Preview of ${document.name}`}
-          className="vd-docdetail-preview-frame"
-          src={previewUrlRef.current || undefined}
-        />
+        <div className={`vd-docdetail-preview-frame-wrap ${!canDownload ? 'vd-preview-restricted' : ''}`}>
+          <iframe
+            title={`Preview of ${document.name}`}
+            className="vd-docdetail-preview-frame"
+            src={pdfUrl || undefined}
+          />
+        </div>
       );
     }
 
     if (kind === 'image') {
       return (
-        <div className="vd-docdetail-preview-image-wrap">
+        <div
+          className={`vd-docdetail-preview-image-wrap ${!canDownload ? 'vd-preview-restricted' : ''}`}
+          onContextMenu={!canDownload ? (e) => e.preventDefault() : undefined}
+        >
           <img
             className="vd-docdetail-preview-image"
             src={previewUrlRef.current || undefined}
             alt={`Preview of ${document.name}`}
+            draggable={canDownload}
+            style={!canDownload ? { userSelect: 'none', WebkitUserDrag: 'none' } : undefined}
           />
         </div>
       );
     }
 
     return (
-      <pre className="vd-docdetail-preview-text">{textContent}</pre>
+      <div
+        className={`vd-docdetail-preview-text-wrap ${!canDownload ? 'vd-preview-restricted' : ''}`}
+        onContextMenu={!canDownload ? (e) => e.preventDefault() : undefined}
+      >
+        <pre className="vd-docdetail-preview-text">{textContent}</pre>
+      </div>
     );
   };
 
@@ -852,7 +893,7 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
               <Button
                 variant="ghost"
                 size="sm"
-                icon={Eye}
+                icon={Download}
                 disabled={!hasStoredFile(document)}
                 onClick={handleDownload}
               >
@@ -862,6 +903,11 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
           }
         >
           <div className="vd-docdetail-preview">{renderPreview()}</div>
+          {!canDownload && (
+            <div className="vd-preview-restricted-print-notice" aria-hidden="true">
+              Printing is disabled for view-only documents.
+            </div>
+          )}
         </Card>
       </div>
 

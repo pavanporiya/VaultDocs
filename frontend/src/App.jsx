@@ -34,6 +34,8 @@ const ROUTES = [
   { path: '/sharing', view: 'sharing' },
   { path: '/login', view: 'login' },
   { path: '/register', view: 'register' },
+  { path: '/forgot-password', view: 'forgot-password' },
+  { path: '/reset-password', view: 'reset-password' },
   { path: '/profile', view: 'profile' },
   { path: '/settings', view: 'settings' },
   { path: '/404', view: '404' },
@@ -56,6 +58,8 @@ const NAV_PATH_MAP = {
   sharing: '/shared',
   login: '/login',
   register: '/register',
+  'forgot-password': '/forgot-password',
+  'reset-password': '/reset-password',
   profile: '/profile',
   settings: '/settings',
   404: '/404',
@@ -115,6 +119,8 @@ const toPath = (target) => {
 const PUBLIC_VIEWS = new Set([
   'login',
   'register',
+  'forgot-password',
+  'reset-password',
   '401',
   '403',
   '404',
@@ -220,6 +226,10 @@ function MainAppContent() {
         return <SharedView onOpenAuthModal={handleOpenAuthModal} onNavigate={handleNavigate} />;
       case 'login':
         return <LoginView onNavigate={handleNavigate} />;
+      case 'forgot-password':
+        return <LoginView onNavigate={handleNavigate} initialStep="forgot" />;
+      case 'reset-password':
+        return <LoginView onNavigate={handleNavigate} initialStep="reset" />;
       case 'register':
         return <RegisterView onNavigate={handleNavigate} />;
       case 'profile':

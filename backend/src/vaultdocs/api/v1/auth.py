@@ -11,23 +11,32 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from vaultdocs.api.dependencies.auth import get_current_user
 from vaultdocs.db.session import get_db
 from vaultdocs.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     RegisterResponse,
     RegisterUserRequest,
     ResendOtpRequest,
     ResendOtpResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     TokenResponse,
     UserResponse,
     VerifyOtpRequest,
     VerifyOtpResponse,
+    VerifyResetTokenRequest,
+    VerifyResetTokenResponse,
 )
 from vaultdocs.schemas.user import UserUpdate  # noqa: TC001
 from vaultdocs.services.auth import (
     UnverifiedUserError,
     login_user,
     register_user,
+    request_password_reset,
     resend_user_otp,
+    reset_user_password,
     update_user_profile,
+    verify_password_reset_token,
     verify_user_otp,
 )
 from vaultdocs.services.email import EmailDeliveryError
@@ -191,6 +200,108 @@ async def login(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ForgotPasswordResponse:
+    """
+    Request a password reset link for the provided email address.
+
+    Always returns a generic success message to prevent user enumeration,
+    while enforcing rate-limiting cooldowns per email address.
+    """
+    try:
+        await request_password_reset(
+            db=db,
+            email=request_data.email,
+        )
+    except EmailDeliveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to send password reset email. Please try again later.",
+        ) from exc
+    except ValueError as exc:
+        msg = str(exc)
+        if "wait" in msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=msg,
+            ) from exc
+        # Suppress other user enumeration hints
+        pass
+
+    return ForgotPasswordResponse(
+        message=(
+            "If your email is registered, you will receive password reset instructions shortly."
+        ),
+    )
+
+
+@router.post(
+    "/verify-reset-token",
+    response_model=VerifyResetTokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def verify_reset_token(
+    request_data: VerifyResetTokenRequest,
+    db: AsyncSession = Depends(get_db),
+) -> VerifyResetTokenResponse:
+    """
+    Check if a password reset token is valid and not expired or already used.
+    """
+    try:
+        user = await verify_password_reset_token(
+            db=db,
+            token=request_data.token,
+            email=request_data.email,
+        )
+        return VerifyResetTokenResponse(
+            valid=True,
+            email=user.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/reset-password",
+    response_model=ResetPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ResetPasswordResponse:
+    """
+    Reset user password using a valid, single-use password reset token.
+    """
+    try:
+        await reset_user_password(
+            db=db,
+            token=request_data.token,
+            new_password=request_data.new_password,
+            email=request_data.email,
+        )
+        return ResetPasswordResponse(
+            message=(
+                "Password has been successfully reset. You can now sign in with your new password."
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
 
