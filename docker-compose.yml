@@ -7,8 +7,8 @@
 #   docker compose up -d          Start all services in background
 #   docker compose up -d --build  Rebuild and start
 #   docker compose logs -f app    Follow backend logs
-#   docker compose down           Stop all services
-#   docker compose down -v        Stop and remove volumes (reset DB)
+#   docker compose down           Stop all services (data is preserved in vaultdocs-db-data)
+#   NOTE: NEVER run 'docker compose down -v' — it deletes database volume data!
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -129,7 +129,7 @@ services:
     #   Allows direct database access from the host machine
     #   (for tools like pgAdmin, DBeaver, or psql).
     ports:
-      - "${DATABASE_PORT:-5432}:5432"
+      - "${DATABASE_PORT:-5433}:5432"
 
     # WHY use a named volume?
     #   Named volumes persist data across container restarts and recreations.
@@ -162,7 +162,7 @@ services:
 #   - Docker manages the storage location (no permission issues)
 #   - Better I/O performance on macOS/Windows
 #   - Easy to backup: docker volume inspect vaultdocs-db-data
-#   - Easy to reset: docker compose down -v
+#   - Persistent: data survives restarts and container recreation
 # =============================================================================
 volumes:
   vaultdocs-db-data:

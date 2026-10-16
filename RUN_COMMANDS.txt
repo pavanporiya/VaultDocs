@@ -53,9 +53,12 @@
  STEP 2 — DATABASE START (PostgreSQL)
 ============================================================================
 
- OPTION A (RECOMMENDED): Docker se database ek line me up
+ OPTION A (RECOMMENDED): Docker se database ek line me up (PERSISTENT DATA)
 
-     docker run -d --name vaultdocs-db -e POSTGRES_DB=VaultDocs -e POSTGRES_USER=VaultDocs_user -e POSTGRES_PASSWORD=change-me-in-production -p 5433:5432 postgres:16-alpine
+     docker run -d --name vaultdocs-db -v vaultdocs-db-data:/var/lib/postgresql/data -e POSTGRES_DB=VaultDocs -e POSTGRES_USER=VaultDocs_user -e POSTGRES_PASSWORD=change-me-in-production -p 5433:5432 --restart unless-stopped postgres:16-alpine
+
+ NOTE: `-v vaultdocs-db-data:/var/lib/postgresql/data` named volume use karta hai,
+ jisse database ka poora data container stop ya recreate hone ke baad bhi 100% safe rehta hai.
 
  Database band/stop karne ke liye (data delete nahi hoga):
 
@@ -225,23 +228,41 @@
  Logs dekhne ke liye:
      docker compose logs -f app
 
- Sab band karne ke liye:
-     docker compose down
+  Sab band karne ke liye (data safe rehta hai):
+      docker compose down
 
- WARNING — ye database ka POORA DATA delete kar deta hai:
-     docker compose down -v
+  CRITICAL WARNING — ye command KABHI MAT CHALAO (named volume delete kar deta hai):
+      # docker compose down -v   <-- DO NOT USE! Wipes database data volume.
 
 ============================================================================
  QUALITY CHECKS (developers ke liye, optional)
 ============================================================================
 
- Backend (project root se):
+ Backend Tests & Linters (project root se):
 
-     uv run pytest
-     uv run ruff check .
-     uv run ruff format --check .
-     uv run mypy backend/src
-     uv run alembic check
+      uv run pytest
+      uv run ruff check .
+      uv run ruff format --check .
+      uv run mypy backend/src
+      uv run alembic check
+
+ NOTE ON TESTS SAFETY:
+   `uv run pytest` automatically connects strictly to the isolated database
+   `VaultDocs_test`. The test suite will immediately ABORT with a runtime error
+   if it ever attempts to connect to live `VaultDocs`. Your development data is safe.
+
+============================================================================
+ DATABASE BACKUPS & RESTORE
+============================================================================
+
+ Manual Backup (timestamped custom format .dump in D:\VaultDocs\backups):
+
+      powershell -File scripts/backup_postgres.ps1
+
+ Safe Restore (restores a dump into a target database):
+
+      powershell -File scripts/restore_postgres.ps1 -DumpFile "backups\<filename>.dump" -TargetDatabase "VaultDocs_restore_test"
+
 
  Frontend:
 
