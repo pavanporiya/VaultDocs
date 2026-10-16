@@ -2,6 +2,9 @@
 Security utilities for password hashing and JWT authentication.
 """
 
+import hashlib
+import secrets
+import string
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -76,3 +79,47 @@ def decode_access_token(
         )
     except JWTError:
         return None
+
+
+PASSWORD_RESET_TOKEN_LENGTH = 6
+PASSWORD_RESET_TOKEN_CHARS = string.ascii_uppercase + string.digits
+
+
+def generate_password_reset_token() -> str:
+    """
+    Generate a cryptographically secure 6-character uppercase alphanumeric password reset token.
+    Example: 'A0B2CJ'.
+    """
+    return "".join(
+        secrets.choice(PASSWORD_RESET_TOKEN_CHARS) for _ in range(PASSWORD_RESET_TOKEN_LENGTH)
+    )
+
+
+def hash_password_reset_token(token: str) -> str:
+    """
+    Compute a secure SHA-256 hash of a plain text reset token.
+    Normalizes token to uppercase and strips whitespace.
+    """
+    normalized = token.strip().upper()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def verify_password_reset_token_hash(plain_token: str, hashed_token: str) -> bool:
+    """
+    Safely compare a plain reset token against its stored hash in constant time.
+    Case-insensitive: normalizes input to uppercase before hashing.
+    """
+    computed = hash_password_reset_token(plain_token)
+    return secrets.compare_digest(computed, hashed_token)
+
+
+def create_password_reset_token(
+    email: str | None = None,  # noqa: ARG001
+    password_hash: str | None = None,  # noqa: ARG001
+    expires_delta: timedelta | None = None,  # noqa: ARG001
+) -> str:
+    """
+    Generate a cryptographically secure 6-character alphanumeric reset token.
+    Maintains compatibility with legacy caller signatures.
+    """
+    return generate_password_reset_token()

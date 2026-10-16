@@ -74,6 +74,11 @@
 .vd-button--secondary:hover:not(:disabled) {
   background-color: var(--color-surface-active);
   border-color: var(--color-border-hover);
+  transform: translateY(-1px);
+}
+
+.vd-button--secondary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 /* Outline Variant */
@@ -86,6 +91,11 @@
 .vd-button--outline:hover:not(:disabled) {
   background-color: var(--color-primary-light);
   border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.vd-button--outline:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 /* Ghost Variant */
@@ -99,6 +109,10 @@
   color: var(--color-text-main);
 }
 
+.vd-button--ghost:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 /* Danger Variant */
 .vd-button--danger {
   background-color: var(--color-danger);
@@ -107,6 +121,11 @@
 
 .vd-button--danger:hover:not(:disabled) {
   background-color: var(--color-danger-hover);
+  transform: translateY(-1px);
+}
+
+.vd-button--danger:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .vd-button--danger:focus-visible {
@@ -147,5 +166,17 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vd-button,
+  .vd-button:hover,
+  .vd-button:active {
+    transition: none !important;
+    transform: none !important;
+  }
+  .vd-button__spinner svg {
+    animation-duration: 2s;
   }
 }

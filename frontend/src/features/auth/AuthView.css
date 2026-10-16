@@ -15,6 +15,7 @@
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-lg, 12px);
   box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(15, 23, 42, 0.1));
+  animation: vd-scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vd-auth-header {
@@ -65,6 +66,7 @@
   color: var(--color-danger-text, #991b1b);
   font-size: var(--font-size-sm, 0.875rem);
   line-height: 1.4;
+  animation: vd-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vd-auth-state-banner {
@@ -76,6 +78,7 @@
   font-size: var(--font-size-sm, 0.875rem);
   line-height: 1.4;
   margin-bottom: 0.25rem;
+  animation: vd-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vd-auth-state-banner.is-sent {
@@ -212,4 +215,13 @@
   opacity: 0.5;
   cursor: not-allowed;
   text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vd-auth-card,
+  .vd-auth-error-alert,
+  .vd-auth-state-banner {
+    animation: none !important;
+    transition: none !important;
+  }
 }

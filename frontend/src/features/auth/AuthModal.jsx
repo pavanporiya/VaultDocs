@@ -338,6 +338,23 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
             disabled={loading}
           />
 
+          {mode === 'login' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
+              <button
+                type="button"
+                className="vd-auth-link-btn"
+                style={{ fontSize: '0.8125rem' }}
+                onClick={() => {
+                  onClose();
+                  window.history.pushState({}, '', '/forgot-password');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
+
           <div className="vd-auth-actions">
             <Button
               variant="primary"

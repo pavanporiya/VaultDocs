@@ -743,13 +743,20 @@ async def preview_document(
             detail=str(exc),
         ) from exc
 
+    can_download = await user_can_download_document(
+        db=db,
+        document=document,
+        user=current_user,
+    )
+    content_disposition = f'inline; filename="{inline_name}"' if can_download else "inline"
+
     # StreamingResponse via Response: media bytes only, rendered inline.
-    # No attachment header, no filename-for-download, no version targeting.
+    # No attachment header, no filename-for-download for view-only users.
     return Response(
         content=file_path.read_bytes(),
         media_type=media_type,
         headers={
-            "Content-Disposition": f'inline; filename="{inline_name}"',
+            "Content-Disposition": content_disposition,
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "private, no-store",
         },

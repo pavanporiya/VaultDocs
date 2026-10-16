@@ -5,12 +5,27 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: box-shadow var(--transition-normal), border-color var(--transition-normal);
+  transition: box-shadow var(--transition-normal), border-color var(--transition-normal), transform var(--transition-normal);
 }
 
 @media (hover: hover) {
   .vd-card--elevation-sm:hover {
     box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  .vd-card--elevation-md:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vd-card {
+    transition: none !important;
+  }
+  .vd-card--elevation-sm:hover,
+  .vd-card--elevation-md:hover {
+    transform: none !important;
   }
 }
 

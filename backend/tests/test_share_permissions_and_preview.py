@@ -34,10 +34,11 @@ async def _upload_file(
     document_id: str,
     filename: str,
     content: bytes,
+    content_type: str = "text/plain",
 ) -> str:
     response = await client.post(
         f"/v1/documents/{document_id}/upload",
-        files={"file": (filename, content, "text/plain")},
+        files={"file": (filename, content, content_type)},
         headers=headers,
     )
     assert response.status_code == 200
@@ -263,7 +264,7 @@ async def test_view_only_recipient_can_preview(
     preview = await client.get(f"/v1/documents/{doc_id}/preview", headers=auth_headers_user_b)
     assert preview.status_code == 200
     assert preview.content == b"seen content"
-    assert "attachment" not in preview.headers.get("content-disposition", "")
+    assert preview.headers.get("content-disposition") == "inline"
 
     download = await client.get(f"/v1/documents/{doc_id}/download", headers=auth_headers_user_b)
     assert download.status_code == 403
@@ -284,6 +285,7 @@ async def test_download_recipient_can_preview_and_download(
 
     preview = await client.get(f"/v1/documents/{doc_id}/preview", headers=auth_headers_user_b)
     assert preview.status_code == 200
+    assert preview.headers.get("content-disposition") == 'inline; filename="both.txt"'
 
     download = await client.get(f"/v1/documents/{doc_id}/download", headers=auth_headers_user_b)
     assert download.status_code == 200
@@ -340,5 +342,83 @@ async def test_preview_requires_auth(
 
     resp = await client.get(f"/v1/documents/{doc_id}/preview")
     assert resp.status_code == 401
+
+    Path(path).unlink()
+
+
+async def test_pdf_preview_and_download_permissions_all_roles(
+    client: AsyncClient,
+    auth_headers_user_a: dict[str, str],
+    auth_headers_user_b: dict[str, str],
+    user_b: User,
+) -> None:
+    """PDF preview & download across roles: owner, view+download (editor), view-only."""
+    pdf_content = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
+    doc_id = await _create_document(client, auth_headers_user_a, "PDF Preview Matrix Doc")
+    path = await _upload_file(
+        client,
+        auth_headers_user_a,
+        doc_id,
+        "sample.pdf",
+        pdf_content,
+        content_type="application/pdf",
+    )
+
+    # 1. Owner: preview has filename; download is 200
+    owner_prev = await client.get(f"/v1/documents/{doc_id}/preview", headers=auth_headers_user_a)
+    assert owner_prev.status_code == 200
+    assert owner_prev.headers["content-type"].startswith("application/pdf")
+    assert owner_prev.headers.get("content-disposition") == 'inline; filename="sample.pdf"'
+
+    owner_dl = await client.get(f"/v1/documents/{doc_id}/download", headers=auth_headers_user_a)
+    assert owner_dl.status_code == 200
+    assert "attachment" in owner_dl.headers.get("content-disposition", "")
+
+    # 2. View-only recipient: preview has NO filename (strict inline); download is 403
+    share = await _share(
+        client,
+        auth_headers_user_a,
+        doc_id,
+        user_b.email,
+        download_allowed=False,
+    )
+    viewer_prev = await client.get(f"/v1/documents/{doc_id}/preview", headers=auth_headers_user_b)
+    assert viewer_prev.status_code == 200
+    assert viewer_prev.headers["content-type"].startswith("application/pdf")
+    assert viewer_prev.headers.get("content-disposition") == "inline"
+
+    viewer_dl = await client.get(f"/v1/documents/{doc_id}/download", headers=auth_headers_user_b)
+    assert viewer_dl.status_code == 403
+
+    # Version download is also 403
+    versions = await client.get(f"/v1/documents/{doc_id}/versions", headers=auth_headers_user_b)
+    v_id = versions.json()[0]["id"]
+    viewer_vdl = await client.get(
+        f"/v1/documents/{doc_id}/versions/{v_id}/download",
+        headers=auth_headers_user_b,
+    )
+    assert viewer_vdl.status_code == 403
+
+    # 3. View + Download recipient (editor): preview has filename; download is 200
+    patch = await client.patch(
+        f"/v1/documents/{doc_id}/shares/{share['id']}",
+        json={"download_allowed": True},
+        headers=auth_headers_user_a,
+    )
+    assert patch.status_code == 200
+
+    editor_prev = await client.get(f"/v1/documents/{doc_id}/preview", headers=auth_headers_user_b)
+    assert editor_prev.status_code == 200
+    assert editor_prev.headers.get("content-disposition") == 'inline; filename="sample.pdf"'
+
+    editor_dl = await client.get(f"/v1/documents/{doc_id}/download", headers=auth_headers_user_b)
+    assert editor_dl.status_code == 200
+    assert "attachment" in editor_dl.headers.get("content-disposition", "")
+
+    editor_vdl = await client.get(
+        f"/v1/documents/{doc_id}/versions/{v_id}/download",
+        headers=auth_headers_user_b,
+    )
+    assert editor_vdl.status_code == 200
 
     Path(path).unlink()

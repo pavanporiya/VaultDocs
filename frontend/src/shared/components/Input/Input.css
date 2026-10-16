@@ -52,6 +52,45 @@
   padding-left: 2.5rem;
 }
 
+.vd-input--has-toggle {
+  padding-right: 2.5rem;
+}
+
+.vd-input-password-toggle {
+  position: absolute;
+  right: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.vd-input-password-toggle:hover:not(:disabled) {
+  color: var(--color-text-main);
+  background-color: var(--color-surface-hover);
+  transform: scale(1.05);
+}
+
+.vd-input-password-toggle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.vd-input-password-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.vd-input-password-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .vd-input::placeholder {
   color: var(--color-text-disabled);
 }
@@ -91,4 +130,12 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-subtle);
   margin-top: 0.125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vd-input,
+  .vd-input-password-toggle {
+    transition: none !important;
+    transform: none !important;
+  }
 }

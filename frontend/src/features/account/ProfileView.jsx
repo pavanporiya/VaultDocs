@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PageHeader, Card, Button, Input, Loader, ErrorState, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import apiClient from '../../shared/services/apiClient';
-import { ShieldCheck, RefreshCw, LogOut, Settings, Edit2, X } from 'lucide-react';
+import { ShieldCheck, RefreshCw, LogOut, Settings, Edit2, X, KeyRound } from 'lucide-react';
 import './Account.css';
 
 export const ProfileView = ({ onNavigate }) => {
@@ -232,7 +232,15 @@ export const ProfileView = ({ onNavigate }) => {
               <span className="vd-info-label">Role Access</span>
               <span className="vd-info-value">{user.is_superuser ? 'Administrator' : 'Standard User'}</span>
             </div>
-            <div className="vd-info-row" style={{ marginTop: '0.5rem' }}>
+            <div className="vd-info-row" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={KeyRound}
+                onClick={() => onNavigate && onNavigate('forgot-password')}
+              >
+                Change Password
+              </Button>
               <Button
                 variant="danger"
                 size="sm"
