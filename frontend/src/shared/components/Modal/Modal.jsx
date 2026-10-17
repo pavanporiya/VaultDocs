@@ -1,10 +1,11 @@
 import React, { useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './Modal.css';
 
 /**
  * Reusable accessible Modal dialog component with backdrop click, Escape key handling,
- * and body scroll locking.
+ * body scroll locking, and React Portal rendering.
  */
 export const Modal = ({
   isOpen,
@@ -30,18 +31,33 @@ export const Modal = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
+
+    // Save previous overflow styles to cleanly restore upon closing
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.classList.add('vd-modal-open');
     document.body.style.overflow = 'hidden';
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+      document.body.classList.remove('vd-modal-open');
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  return (
-    <div className="vd-modal-overlay" onClick={closeOnOverlayClick ? onClose : undefined}>
+  const modalNode = (
+    <div
+      className="vd-modal-overlay"
+      onClick={(e) => {
+        if (closeOnOverlayClick && e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      role="presentation"
+    >
       <div
         className={`vd-modal vd-modal--${size} ${className}`}
         role="dialog"
@@ -71,6 +87,11 @@ export const Modal = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalNode, document.body)
+    : modalNode;
 };
 
 export default Modal;
+
