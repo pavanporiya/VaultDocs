@@ -39,6 +39,7 @@ dependencies = [
     "structlog>=24.4.0",
     "email-validator>=2.3.0",
     "bcrypt<5",
+    "pywebpush>=2.5.0",
 ]
 
 [project.optional-dependencies]
@@ -129,6 +130,12 @@ exclude = [
     "^alembic/",
 ]
 
+[[tool.mypy.overrides]]
+module = [
+    "pywebpush",
+]
+ignore_missing_imports = true
+
 # --------------- pytest ---------------
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
@@ -137,7 +144,7 @@ addopts = [
     "-v",
     "--strict-markers",
     "--tb=short",
-    "--cov=backend/src/vaultdocs",
+    "--cov=vaultdocs",
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
 ]
@@ -153,7 +160,7 @@ filterwarnings = [
 
 # --------------- Coverage ---------------
 [tool.coverage.run]
-source = ["backend/src/vaultdocs"]
+source = ["vaultdocs"]
 omit = [
     "*/tests/*",
     "*/migrations/*",

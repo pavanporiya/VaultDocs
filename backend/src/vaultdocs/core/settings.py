@@ -280,11 +280,193 @@ class Settings(BaseSettings):
         description="Timeout for AI provider HTTP requests.",
     )
 
+
     ai_max_input_chars: int = Field(
         default=6_000,
         ge=500,
         description="Maximum characters of document text sent to an AI provider.",
     )
+
+    # -------------------------------------------------------------------------
+    # Device Approval / Web Push / Trusted Device Settings
+    # -------------------------------------------------------------------------
+
+    vapid_public_key: str | None = Field(
+        default=None,
+        description=(
+            "VAPID public key (base64url, uncompressed P-256 point, 65 bytes). "
+            "Required for Web Push sign-in approvals."
+        ),
+        validation_alias=AliasChoices("vapid_public_key", "VAPID_PUBLIC_KEY"),
+    )
+
+    vapid_private_key: str | None = Field(
+        default=None,
+        description=(
+            "VAPID private key (base64url). Required for Web Push sign-in approvals. "
+            "Never logged. Generate with: py_vapid generate --applicationServerKey"
+        ),
+        validation_alias=AliasChoices("vapid_private_key", "VAPID_PRIVATE_KEY"),
+    )
+
+    vapid_claims_email: str = Field(
+        default="admin@vaultdocs.local",
+        description="VAPID subject contact email (mailto: claim).",
+        validation_alias=AliasChoices("vapid_claims_email", "VAPID_CLAIMS_EMAIL"),
+    )
+
+    login_challenge_expire_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=1800,
+        description="Lifetime of a pending sign-in approval challenge (seconds).",
+    )
+
+    trusted_device_expire_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="How long a trusted device (Remember this device) stays valid.",
+    )
+
+    push_subscription_expire_days: int = Field(
+        default=60,
+        ge=1,
+        le=365,
+        description="Lifetime of a stored Web Push subscription before forced rotation.",
+    )
+
+    login_approval_code_expire_minutes: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Lifetime of the email fallback sign-in approval code.",
+    )
+
+    login_approval_code_max_failed_attempts: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Max failed email approval-code attempts before code invalidation.",
+    )
+
+    login_approval_code_cooldown_seconds: int = Field(
+        default=60,
+        ge=0,
+        le=600,
+        description="Minimum seconds between email approval-code resends.",
+    )
+
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable in-process sliding-window rate limiting for auth endpoints.",
+    )
+
+    rate_limit_login_attempts: int = Field(
+        default=10,
+        ge=1,
+        description="Max login attempts per identity/IP within the login window.",
+    )
+
+    rate_limit_login_window_seconds: int = Field(
+        default=300,
+        ge=10,
+        description="Sliding window (seconds) for login rate limiting.",
+    )
+
+    rate_limit_challenge_attempts: int = Field(
+        default=5,
+        ge=1,
+        description="Max approval challenges that may be created per email within the window.",
+    )
+
+    rate_limit_poll_attempts: int = Field(
+        default=60,
+        ge=1,
+        description="Max challenge status polls per challenge within the poll window.",
+    )
+
+    rate_limit_poll_window_seconds: int = Field(
+        default=60,
+        ge=10,
+        description="Sliding window (seconds) for challenge status polling.",
+    )
+
+    rate_limit_approve_attempts: int = Field(
+        default=20,
+        ge=1,
+        description="Max approval/deny attempts per user within the approve window.",
+    )
+
+    rate_limit_resend_attempts: int = Field(
+        default=5,
+        ge=1,
+        description="Max challenge resend requests per challenge within the resend window.",
+    )
+
+    rate_limit_resend_window_seconds: int = Field(
+        default=600,
+        ge=10,
+        description="Sliding window (seconds) for challenge resends.",
+    )
+
+    # -------------------------------------------------------------------------
+    # VAPID Configuration Validation
+    # -------------------------------------------------------------------------
+
+    def validate_push_configuration(self) -> None:
+        """
+        Validate Web Push (VAPID) configuration integrity.
+
+        Raises RuntimeError when configuration is partially set or malformed so
+        the application fails safely at startup instead of silently issuing
+        broken or insecure push notifications. When both keys are absent the
+        push channel is simply disabled (email approval fallback still applies).
+        """
+        public_key = (self.vapid_public_key or "").strip()
+        private_key = (self.vapid_private_key or "").strip()
+
+        if not public_key and not private_key:
+            return  # Push disabled; email approval fallback covers sign-in.
+
+        if not public_key or not private_key:
+            raise RuntimeError(
+                "INVALID PUSH CONFIGURATION: Both VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY "
+                "must be set together, or both left empty to disable Web Push. "
+                "Failing safely at startup."
+            )
+
+        import base64
+
+        def _b64url_decode(value: str) -> bytes:
+            padding = "=" * (-len(value) % 4)
+            return base64.urlsafe_b64decode(value + padding)
+
+        try:
+            public_bytes = _b64url_decode(public_key)
+        except Exception as exc:
+            raise RuntimeError(
+                "INVALID PUSH CONFIGURATION: VAPID_PUBLIC_KEY is not valid base64url data."
+            ) from exc
+
+        if len(public_bytes) != 65 or public_bytes[0] != 0x04:
+            raise RuntimeError(
+                "INVALID PUSH CONFIGURATION: VAPID_PUBLIC_KEY must be a 65-byte "
+                "uncompressed P-256 point (base64url)."
+            )
+
+        try:
+            private_bytes = _b64url_decode(private_key)
+        except Exception as exc:
+            raise RuntimeError(
+                "INVALID PUSH CONFIGURATION: VAPID_PRIVATE_KEY is not valid base64url data."
+            ) from exc
+
+        if len(private_bytes) not in (27, 28, 32):
+            raise RuntimeError(
+                "INVALID PUSH CONFIGURATION: VAPID_PRIVATE_KEY must be the base64url "
+                "encoding of a P-256 private key (27/28-byte DER or 32-byte raw)."
+            )
 
     # -------------------------------------------------------------------------
     # Database URLs

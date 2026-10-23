@@ -123,3 +123,52 @@ def create_password_reset_token(
     Maintains compatibility with legacy caller signatures.
     """
     return generate_password_reset_token()
+
+# -----------------------------------------------------------------------------
+# Generic hashing / random token helpers (device approval flow)
+# -----------------------------------------------------------------------------
+
+
+def sha256_hex(value: str) -> str:
+    """
+    Compute a SHA-256 hex digest of a UTF-8 string.
+    Used to store only hashes of device credentials and challenge ids.
+    """
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def generate_secure_token(num_bytes: int = 32) -> str:
+    """
+    Generate a cryptographically secure URL-safe random token.
+    Default 32 bytes -> 256 bits of entropy.
+    """
+    return secrets.token_urlsafe(num_bytes)
+
+
+def constant_time_equals(left: str, right: str) -> bool:
+    """
+    Compare two strings in constant time.
+    """
+    return secrets.compare_digest(left, right)
+
+# -----------------------------------------------------------------------------
+# OTP helpers (verification + sign-in approval codes)
+# -----------------------------------------------------------------------------
+
+
+def generate_otp() -> str:
+    """Generate a cryptographically secure 6-digit numeric OTP."""
+    code = secrets.randbelow(1_000_000)
+    return f"{code:06d}"
+
+
+def hash_otp(otp: str) -> str:
+    """Compute SHA-256 hash of plain text OTP code."""
+    return hashlib.sha256(otp.strip().encode("utf-8")).hexdigest()
+
+
+def verify_otp_hash(plain_otp: str, hashed_otp: str) -> bool:
+    """Safely compare plain OTP against its stored SHA-256 hash in constant time."""
+    computed = hash_otp(plain_otp)
+    return secrets.compare_digest(computed, hashed_otp)
+

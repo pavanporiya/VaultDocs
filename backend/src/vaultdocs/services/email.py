@@ -353,3 +353,122 @@ def send_password_reset_email(
         raise EmailDeliveryError(
             f"Failed to deliver password reset email via SMTP ({type(exc).__name__})."
         ) from None
+
+def send_login_approval_email(
+    to_email: str,
+    recipient_name: str,
+    approval_code: str,
+    expire_minutes: int,
+) -> None:
+    """
+    Send a sign-in approval email containing a single-use 6-digit code.
+
+    Used as the secure fallback approval channel when no trusted phone
+    (Web Push subscription) is registered for the account. The code only
+    approves the pending sign-in challenge; it never grants trust by itself.
+    Raises EmailDeliveryError if SMTP is unconfigured or transmission fails.
+    Never logs credentials or plain text codes.
+    """
+    if _mock_smtp_mode:
+        if _mock_smtp_fail:
+            raise EmailDeliveryError("Mock SMTP delivery failure for testing.")
+        _test_outbox.append(
+            {
+                "to_email": to_email,
+                "recipient_name": recipient_name,
+                "otp_code": approval_code,
+                "type": "login_approval",
+                "expire_minutes": expire_minutes,
+            }
+        )
+        return
+
+    smtp_user = settings.smtp_username
+    smtp_pass = settings.smtp_password
+
+    if not smtp_user or not smtp_pass:
+        raise EmailDeliveryError(
+            "SMTP credentials not configured. Please set SMTP_USERNAME and SMTP_PASSWORD."
+        )
+
+    from_email = settings.smtp_from_email or smtp_user
+    from_name = settings.smtp_from_name or "VaultDocs"
+
+    msg = EmailMessage()
+    msg["Subject"] = "Approve your VaultDocs sign-in"
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to_email
+
+    safe_name = html.escape(recipient_name or "User")
+    safe_code = html.escape(approval_code)
+
+    text_content = (
+        f"Hello {recipient_name},\n\n"
+        f"A sign-in to VaultDocs was requested from an unrecognized device.\n\n"
+        f"Your sign-in approval code is: {approval_code}\n\n"
+        f"This code expires in {expire_minutes} minutes and can only be used once.\n"
+        f"If you did not try to sign in, deny the request and change your password.\n\n"
+        f"— The VaultDocs Team"
+    )
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+     sans-serif; background: #0b0f19; color: #f3f4f6; padding: 24px; margin: 0;">
+  <div style="max-width: 480px; margin: 0 auto; background: #111827;
+       border: 1px solid #1f2937; border-radius: 12px; padding: 32px;">
+    <div style="display: inline-block; padding: 4px 12px;
+         background: rgba(99, 102, 241, 0.15); color: #818cf8;
+         border-radius: 6px; font-weight: 600; font-size: 13px; margin-bottom: 16px;">
+      VaultDocs Security
+    </div>
+    <h1 style="font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 8px;">
+      Approve Your Sign-In
+    </h1>
+    <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin: 8px 0;">
+      Hello {safe_name}, a sign-in to VaultDocs was requested from an
+      unrecognized device. Enter this code in the browser to continue:
+    </p>
+    <div style="background: #1f2937; border: 1px solid #374151;
+         border-radius: 8px; text-align: center; padding: 18px; margin: 24px 0;">
+      <span style="font-family: monospace; font-size: 32px; font-weight: 800;
+            letter-spacing: 8px; color: #6366f1;">{safe_code}</span>
+    </div>
+    <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin: 8px 0;">
+      This code expires in <strong>{expire_minutes} minutes</strong> and is
+      single-use. Never share it.
+    </p>
+    <div style="font-size: 12px; color: #6b7280; margin-top: 24px;
+         border-top: 1px solid #1f2937; padding-top: 16px;">
+      <p style="margin: 0;">If you did not try to sign in, deny the request in
+      the browser and change your password immediately.</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    msg.set_content(text_content)
+    msg.add_alternative(html_content, subtype="html")
+
+    try:
+        with smtplib.SMTP(
+            settings.smtp_host,
+            settings.smtp_port,
+            timeout=settings.smtp_timeout_seconds,
+        ) as server:
+            if settings.smtp_use_tls:
+                server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+    except Exception as exc:
+        logger.error(
+            "SMTP login approval transmission failed: %s",
+            type(exc).__name__,
+        )
+        raise EmailDeliveryError(
+            f"Failed to deliver sign-in approval email via SMTP ({type(exc).__name__})."
+        ) from None
+

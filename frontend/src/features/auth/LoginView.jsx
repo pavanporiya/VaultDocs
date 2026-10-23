@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Input, Button, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import {
@@ -11,7 +11,10 @@ import {
   ArrowLeft,
   KeyRound,
   Lock,
+  Smartphone,
 } from 'lucide-react';
+import LoginApprovalPanel from './LoginApprovalPanel';
+import { useLoginApproval } from './useLoginApproval';
 import './AuthView.css';
 
 export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
@@ -32,6 +35,13 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
   const [error, setError] = useState('');
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
+  // "Remember this device for 30 days" — unchecked by default; approval is
+  // never granted automatically unless the user explicitly opts in.
+  const [rememberDevice, setRememberDevice] = useState(false);
+
+  // Pending sign-in approval flow (phone push / email code).
+  const approval = useLoginApproval();
+
   // Password Reset states
   const [forgotEmail, setForgotEmail] = useState(emailFromUrl);
   const [forgotSuccess, setForgotSuccess] = useState(false);
@@ -46,8 +56,46 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
   const [resending, setResending] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const { login, verifyOtp, resendOtp, forgotPassword, resetPassword } = useAuth();
+  const {
+    login,
+    verifyOtp,
+    resendOtp,
+    forgotPassword,
+    resetPassword,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+  } = useAuth();
   const toast = useToast();
+
+  // An already-authenticated user must never see the sign-in form. This
+  // happens after signing in through the AuthModal (which closes but does
+  // not navigate) and on a page reload at /login with a valid session:
+  // both previously showed the sign-in screen despite an active session.
+  useEffect(() => {
+    if (step === 'login' && isAuthenticated && !isAuthLoading) {
+      onNavigate('dashboard');
+    }
+  }, [step, isAuthenticated, isAuthLoading, onNavigate]);
+
+  // Logout while this page is still mounted (e.g. right after an approved
+  // sign-in, before the auto-redirect): drop the stale success banner,
+  // challenge state, timers and the pending navigation callback so a fresh
+  // sign-in flow is shown instead.
+  const wasAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    const loggedOut = wasAuthenticatedRef.current && !isAuthenticated;
+    wasAuthenticatedRef.current = isAuthenticated;
+    if (loggedOut) {
+      approval.reset();
+      setStep('login');
+      setError('');
+      setUnverifiedEmail('');
+      setOtpCode('');
+      setOtpState('idle');
+      setResendTimer(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, approval.reset]);
 
   // Handle live countdown timer for OTP resend cooldown
   useEffect(() => {
@@ -83,7 +131,15 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
 
     setLoading(true);
     try {
-      await login(email, password);
+      const response = await login(email, password, { rememberDevice });
+
+      // New/untrusted device: credentials were valid but the server demands
+      // explicit approval before any token exists.
+      if (response && response.approval_required) {
+        approval.begin(response);
+        return;
+      }
+
       toast.success('Successfully logged in!', 'Welcome Back');
       if (onNavigate) {
         onNavigate('dashboard');
@@ -258,6 +314,18 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
       setLoading(false);
     }
   };
+
+  // Auto-navigate once the approval flow completes successfully.
+  useEffect(() => {
+    if (approval.status === 'approved') {
+      toast.success('Sign-in approved!', 'Welcome Back');
+      const timer = setTimeout(() => {
+        if (onNavigate) onNavigate('dashboard');
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [approval.status, onNavigate, toast]);
 
   // Step: Forgot Password
   if (step === 'forgot') {
@@ -632,6 +700,24 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="vd-auth-form" noValidate>
+          {approval.challenge && approval.status !== 'idle' ? (
+            <>
+              <div className="vd-auth-state-banner is-sent" role="status">
+                <Smartphone size={16} />
+                <span>
+                  <strong>Check your phone to approve this sign-in.</strong>
+                </span>
+              </div>
+              <LoginApprovalPanel
+                approval={approval}
+                onBack={() => {
+                  approval.cancel();
+                  setError('');
+                }}
+              />
+            </>
+          ) : (
+            <>
           {unverifiedEmail ? (
             <div
               className="vd-auth-state-banner is-invalid"
@@ -689,6 +775,34 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
             disabled={loading}
           />
 
+          <label
+            className="vd-auth-remember-device"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.8125rem',
+              color: 'var(--color-text-muted, #64748b)',
+              cursor: 'pointer',
+              marginTop: '-0.25rem',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={rememberDevice}
+              onChange={(e) => setRememberDevice(e.target.checked)}
+              disabled={loading}
+              aria-label="Remember this device for 30 days"
+              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+            />
+            <span>
+              Remember this device for 30 days{' '}
+              <span title="Only after you approve this sign-in from your phone">
+                🔒
+              </span>
+            </span>
+          </label>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
             <button
               type="button"
@@ -737,6 +851,8 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
               Have a verification code? Verify here
             </button>
           </div>
+            </>
+          )}
         </form>
       </Card>
     </div>

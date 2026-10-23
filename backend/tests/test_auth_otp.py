@@ -421,8 +421,24 @@ async def test_verified_user_login_succeeds(client: AsyncClient) -> None:
         "/v1/auth/login",
         json={"email": email, "password": password},
     )
-    assert login_res.status_code == 200
-    token_data = login_res.json()
+    # Credentials are valid, but this is a new/untrusted device: the server
+    # demands explicit approval before issuing any JWT.
+    assert login_res.status_code == 202
+    approval = login_res.json()
+    assert approval["approval_required"] is True
+
+    # Approve via the emailed sign-in approval code (no trusted phone yet).
+    approval_code = [
+        entry["otp_code"]
+        for entry in get_test_outbox()
+        if entry.get("type") == "login_approval"
+    ][-1]
+    complete_res = await client.post(
+        f"/v1/auth/login/challenges/{approval['challenge_id']}/complete",
+        json={"approval_code": approval_code},
+    )
+    assert complete_res.status_code == 200
+    token_data = complete_res.json()
     assert "access_token" in token_data
     assert token_data["token_type"] == "bearer"  # noqa: S105
 

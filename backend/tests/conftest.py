@@ -34,6 +34,7 @@ if _resolved_test_db != "VaultDocs_test":
 settings.custom_database_url = TEST_DATABASE_URL
 settings.postgres_db = _test_db_name
 
+from vaultdocs.core.rate_limit import rate_limiter  # noqa: E402
 from vaultdocs.core.security import create_access_token, hash_password  # noqa: E402
 from vaultdocs.db.base import Base  # noqa: E402
 from vaultdocs.db.session import get_db  # noqa: E402
@@ -58,6 +59,36 @@ def _force_local_summary_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setattr(settings, "ai_provider", "extractive")
     monkeypatch.setattr(settings, "ai_api_key", None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> Generator[None]:
+    """
+    Reset in-process auth rate limiters between tests.
+
+    Guarantees test isolation: rate-limit tests start from a clean slate and
+    unrelated tests never trip limits set by earlier tests.
+    """
+    rate_limiter.reset()
+    yield
+    rate_limiter.reset()
+
+
+@pytest.fixture(autouse=True)
+def _force_mock_push() -> Generator[None]:
+    """
+    Force isolated in-memory mock Web Push during all automated test runs.
+
+    Guarantees no real push network calls are ever made during testing.
+    Individual tests may disable mock mode to exercise the email fallback.
+    """
+    from vaultdocs.services.push import clear_push_outbox, set_mock_push
+
+    set_mock_push(True)
+    clear_push_outbox()
+    yield
+    clear_push_outbox()
+    set_mock_push(False)
 
 
 @pytest.fixture(autouse=True)
