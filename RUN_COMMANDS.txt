@@ -132,17 +132,21 @@
 
  From the repository root directory:
 
-     uv run uvicorn vaultdocs.main:app --port 8000
+     uv run uvicorn vaultdocs.main:app --port 8001
+
+ NOTE: VaultDocs runs on port 8001 by default to prevent port conflicts
+ when port 8000 is occupied by another local service or container.
+ If port 8000 is free and preferred, pass `--port 8000`.
 
  Verify the backend status in a separate terminal:
 
-     curl http://localhost:8000/v1/health
+     curl http://localhost:8001/v1/health
 
  Expected response:
      {"status":"healthy","database":"connected",...}
 
  Interactive API Documentation (Swagger UI):
-     http://localhost:8000/docs
+     http://localhost:8001/docs
 
 ============================================================================
  STEP 7 — START FRONTEND APPLICATION (Open a new terminal)
@@ -165,7 +169,7 @@
    - If port 3000 is occupied, Vite will automatically select 3001 or 3002.
      Always use the port displayed in your terminal.
    - The Vite development server automatically proxies `/v1` API requests to
-     the FastAPI backend at `http://localhost:8000`. No extra proxy setup is needed.
+     the FastAPI backend at `http://localhost:8001`. No extra proxy setup is needed.
 
 ============================================================================
  DAILY DEVELOPMENT QUICK-START (Subsequent Sessions)
@@ -175,7 +179,7 @@
      docker start vaultdocs-db
 
  Terminal 2 (Backend API):
-     uv run uvicorn vaultdocs.main:app --port 8000
+     uv run uvicorn vaultdocs.main:app --port 8001
 
  Terminal 3 (Frontend Client):
      cd frontend && npm run dev
