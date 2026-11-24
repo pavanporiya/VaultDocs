@@ -157,21 +157,24 @@ uv run alembic upgrade head
 From the project root:
 
 ```bash
-uv run uvicorn vaultdocs.main:app --port 8000
+uv run uvicorn vaultdocs.main:app --port 8001
 ```
+
+> [!NOTE]
+> VaultDocs is configured to run on port `8001` (to avoid collision if port `8000` is used by another container or service). If you prefer port `8000`, specify `--port 8000`.
 
 Verify service availability in another terminal:
 
 ```bash
-curl http://localhost:8000/v1/health
+curl http://localhost:8001/v1/health
 ```
 
 **Expected JSON Response:**
 ```json
-{"status":"healthy","database":"connected"}
+{"status":"healthy","database":"connected","environment":"development","version":"0.1.0"}
 ```
 
-- **Interactive API Documentation (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Interactive API Documentation (Swagger UI):** [http://localhost:8001/docs](http://localhost:8001/docs)
 
 ---
 
@@ -189,7 +192,7 @@ The Vite development server will report the active local address (typically `htt
 
 > [!NOTE]
 > - If port 3000 is occupied, Vite will automatically select `3001` or `3002`. Always open the exact URL displayed in your terminal.
-> - Vite automatically proxies `/v1` API requests to the backend server at `http://localhost:8000`.
+> - Vite automatically proxies `/v1` API requests to the backend server at `http://localhost:8001` (customizable via `VITE_BACKEND_URL`).
 
 ---
 
@@ -200,7 +203,7 @@ For routine development sessions, open three terminals:
 | Terminal | Service | Command |
 | :--- | :--- | :--- |
 | **Terminal 1** | Database (if stopped) | `docker start vaultdocs-db` |
-| **Terminal 2** | Backend API | `uv run uvicorn vaultdocs.main:app --port 8000` |
+| **Terminal 2** | Backend API | `uv run uvicorn vaultdocs.main:app --port 8001` |
 | **Terminal 3** | Frontend Dev Server | `cd frontend && npm run dev` |
 
 - **Browser Access:** [http://localhost:3000](http://localhost:3000)
