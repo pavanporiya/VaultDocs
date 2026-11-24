@@ -8,7 +8,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from vaultdocs.core.settings import settings
 
@@ -34,6 +39,7 @@ if _resolved_test_db != "VaultDocs_test":
 settings.custom_database_url = TEST_DATABASE_URL
 settings.postgres_db = _test_db_name
 
+from vaultdocs.core.rate_limit import rate_limiter  # noqa: E402
 from vaultdocs.core.security import create_access_token, hash_password  # noqa: E402
 from vaultdocs.db.base import Base  # noqa: E402
 from vaultdocs.db.session import get_db  # noqa: E402
@@ -61,6 +67,19 @@ def _force_local_summary_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> Generator[None]:
+    """
+    Reset in-process auth rate limiters between tests.
+
+    Guarantees test isolation: rate-limit tests start from a clean slate and
+    unrelated tests never trip limits set by earlier tests.
+    """
+    rate_limiter.reset()
+    yield
+    rate_limiter.reset()
+
+
+@pytest.fixture(autouse=True)
 def _force_mock_smtp() -> Generator[None]:
     """
     Force isolated in-memory mock SMTP during all automated test runs.
@@ -77,7 +96,7 @@ def _force_mock_smtp() -> Generator[None]:
 
 
 @pytest.fixture
-async def db_engine():
+async def db_engine() -> AsyncGenerator[AsyncEngine]:
     """
     Create an isolated test database engine.
     Guarantees Base.metadata.create_all and drop_all NEVER run against development DB.
@@ -127,7 +146,7 @@ async def db_engine():
 
 
 @pytest.fixture
-async def db_session(db_engine) -> AsyncGenerator[AsyncSession]:
+async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
     """
     Yield an async database session wrapped in a transaction that rolls back.
     """
@@ -198,7 +217,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     HTTP client for testing API endpoints with overridden db dependency.
     """
 
-    async def _override_get_db():
+    async def _override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db

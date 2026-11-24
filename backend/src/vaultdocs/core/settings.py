@@ -287,6 +287,89 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    login_challenge_expire_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=1800,
+        description="Lifetime of a pending sign-in approval challenge (seconds).",
+    )
+
+    trusted_device_expire_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="How long a trusted device (Remember this device) stays valid.",
+    )
+
+    login_approval_code_expire_minutes: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Lifetime of the email fallback sign-in approval code.",
+    )
+
+    login_approval_code_max_failed_attempts: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Max failed email approval-code attempts before code invalidation.",
+    )
+
+    login_approval_code_cooldown_seconds: int = Field(
+        default=60,
+        ge=0,
+        le=600,
+        description="Minimum seconds between email approval-code resends.",
+    )
+
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable in-process sliding-window rate limiting for auth endpoints.",
+    )
+
+    rate_limit_login_attempts: int = Field(
+        default=10,
+        ge=1,
+        description="Max login attempts per identity/IP within the login window.",
+    )
+
+    rate_limit_login_window_seconds: int = Field(
+        default=300,
+        ge=10,
+        description="Sliding window (seconds) for login rate limiting.",
+    )
+
+    rate_limit_challenge_attempts: int = Field(
+        default=5,
+        ge=1,
+        description="Max approval challenges that may be created per email within the window.",
+    )
+
+    rate_limit_poll_attempts: int = Field(
+        default=60,
+        ge=1,
+        description="Max challenge status polls per challenge within the poll window.",
+    )
+
+    rate_limit_poll_window_seconds: int = Field(
+        default=60,
+        ge=10,
+        description="Sliding window (seconds) for challenge status polling.",
+    )
+
+    rate_limit_resend_attempts: int = Field(
+        default=5,
+        ge=1,
+        description="Max challenge resend requests per challenge within the resend window.",
+    )
+
+    rate_limit_resend_window_seconds: int = Field(
+        default=600,
+        ge=10,
+        description="Sliding window (seconds) for challenge resends.",
+    )
+
+    # -------------------------------------------------------------------------
     # Database URLs
     # -------------------------------------------------------------------------
 

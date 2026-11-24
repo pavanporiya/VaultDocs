@@ -132,7 +132,7 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
       key: 'shared_with_user_id',
       render: (row) => (
         <div className="vd-doc-cell">
-          <Mail size={16} />
+          <Mail size={16} style={{ flexShrink: 0 }} />
           {row.shared_with_email ? (
             <span
               className="vd-share-recipient"
@@ -247,7 +247,7 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
         {/* Share Input Form */}
         <form onSubmit={handleShare} className="vd-share-form">
           <div className="vd-share-input-row">
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <Input
                 placeholder="Recipient registered email address..."
                 type="email"
@@ -327,16 +327,19 @@ export const SharesModal = ({ isOpen, onClose, document }) => {
             onRetry={fetchShares}
           />
         ) : (
-          <Table
-            columns={columns}
-            data={shares}
-            emptyTitle="Not shared with anyone"
-            emptyDescription="Enter an email above to share this document."
-          />
+          <div className="vd-share-table-wrapper">
+            <Table
+              columns={columns}
+              data={shares}
+              emptyTitle="Not shared with anyone"
+              emptyDescription="Enter an email above to share this document."
+            />
+          </div>
         )}
       </div>
     </Modal>
   );
+
 };
 
 export default SharesModal;

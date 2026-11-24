@@ -4,8 +4,6 @@ Authentication service with Gmail OTP email verification support.
 
 from __future__ import annotations
 
-import hashlib
-import secrets
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -13,9 +11,12 @@ from sqlalchemy import func, select
 
 from vaultdocs.core.security import (
     create_access_token,
+    generate_otp,
     generate_password_reset_token,
+    hash_otp,
     hash_password,
     hash_password_reset_token,
+    verify_otp_hash,
     verify_password,
     verify_password_reset_token_hash,
 )
@@ -45,21 +46,7 @@ class UnverifiedUserError(ValueError):
         self.email = email
 
 
-def generate_otp() -> str:
-    """Generate a cryptographically secure 6-digit numeric OTP."""
-    code = secrets.randbelow(1_000_000)
-    return f"{code:06d}"
-
-
-def hash_otp(otp: str) -> str:
-    """Compute SHA-256 hash of plain text OTP code."""
-    return hashlib.sha256(otp.strip().encode("utf-8")).hexdigest()
-
-
-def verify_otp_hash(plain_otp: str, hashed_otp: str) -> bool:
-    """Safely compare plain OTP against its stored SHA-256 hash in constant time."""
-    computed = hash_otp(plain_otp)
-    return secrets.compare_digest(computed, hashed_otp)
+# OTP helpers are re-exported from vaultdocs.core.security for reuse.
 
 
 async def get_user_by_email(
@@ -476,5 +463,14 @@ async def reset_user_password(
 
     await db.commit()
     await db.refresh(user)
+
+    # Security event: revoke every trusted device so
+    # stale device trust never survives a credential reset. Imported lazily
+    # to avoid a module-level circular import.
+    from vaultdocs.services.device_approval import (
+        revoke_all_security_credentials,
+    )
+
+    await revoke_all_security_credentials(db, user.id)
 
     return user

@@ -1,5 +1,7 @@
 .vd-table-container {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -9,17 +11,21 @@
 
 .vd-table-scroll {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .vd-table {
   width: 100%;
+  min-width: 100%;
   border-collapse: collapse;
   text-align: left;
   font-size: var(--font-size-sm);
   color: var(--color-text-main);
 }
+
 
 .vd-table__th {
   background-color: var(--color-bg);

@@ -16,6 +16,7 @@ import apiClient, { downloadFile, saveBlob } from '../../shared/services/apiClie
 import VersionsModal from './VersionsModal';
 import SharesModal from './SharesModal';
 import UploadModal from './UploadModal';
+import BulkUploadModal from './BulkUploadModal';
 import { formatFileSize, formatDate, hasStoredFile, getDocumentDisplayName } from '../../shared/utils/format';
 import {
   FileText,
@@ -26,6 +27,7 @@ import {
   History,
   Share2,
   Search,
+  FolderUp,
 } from 'lucide-react';
 import './DocumentsView.css';
 
@@ -53,6 +55,9 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedDocForUpload, setSelectedDocForUpload] = useState(null);
   const [uploadMode, setUploadMode] = useState('POST'); // 'POST' or 'PUT'
+
+  // Bulk upload modal state (multi-file + folder upload)
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   // Create form state
   const [docName, setDocName] = useState('');
@@ -359,17 +364,29 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
         title="All Documents"
         description="Create document records, upload & replace files, maintain versions, and share access."
         actions={
-          <Button
-            variant="primary"
-            icon={Plus}
-            onClick={() => {
-              setDocName('');
-              setSelectedFolderId('');
-              setIsCreateModalOpen(true);
-            }}
-          >
-            New Document
-          </Button>
+          <>
+            <Button
+              id="vd-bulk-upload-btn"
+              variant="secondary"
+              icon={FolderUp}
+              onClick={() => setIsBulkUploadOpen(true)}
+              title="Upload multiple files or a full folder"
+            >
+              Bulk Upload
+            </Button>
+            <Button
+              id="vd-new-doc-btn"
+              variant="primary"
+              icon={Plus}
+              onClick={() => {
+                setDocName('');
+                setSelectedFolderId('');
+                setIsCreateModalOpen(true);
+              }}
+            >
+              New Document
+            </Button>
+          </>
         }
       />
 
@@ -410,7 +427,7 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
             emptyDescription={
               isSearchActive
                 ? `No documents matching "${debouncedSearch}"`
-                : 'Click "New Document" to create your first document.'
+                : 'Click "New Document" or "Bulk Upload" to add documents.'
             }
           />
         )}
@@ -452,6 +469,13 @@ export const DocumentsView = ({ onOpenAuthModal, onNavigate, searchQuery = '' })
           </div>
         </form>
       </Modal>
+
+      {/* Bulk Upload Modal (multi-file + full-folder upload) */}
+      <BulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        onDone={() => fetchDocuments()}
+      />
 
       {/* Upload / Replace File Modal (shared component) */}
       <UploadModal

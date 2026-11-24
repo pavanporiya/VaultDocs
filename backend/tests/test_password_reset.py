@@ -246,13 +246,25 @@ async def test_reset_password_success_and_login(
     )
     assert old_login.status_code == 401
 
-    # Verify new password works
+    # Verify new password works. The device is untrusted (trust was revoked
+    # by the password reset), so approval is required first.
     new_login = await client.post(
         "/v1/auth/login",
         json={"email": email, "password": new_password},
     )
-    assert new_login.status_code == 200
-    assert "access_token" in new_login.json()
+    assert new_login.status_code == 202
+    approval = new_login.json()
+    assert approval["approval_required"] is True
+
+    approval_code = [
+        entry["otp_code"] for entry in get_test_outbox() if entry.get("type") == "login_approval"
+    ][-1]
+    complete_res = await client.post(
+        f"/v1/auth/login/challenges/{approval['challenge_id']}/complete",
+        json={"approval_code": approval_code},
+    )
+    assert complete_res.status_code == 200
+    assert "access_token" in complete_res.json()
 
 
 async def test_reset_token_is_strictly_single_use(

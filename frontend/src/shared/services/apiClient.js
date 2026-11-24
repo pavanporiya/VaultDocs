@@ -235,4 +235,63 @@ export const apiClient = {
     }),
 };
 
+/**
+ * Upload a file via XMLHttpRequest to get real per-file upload progress events.
+ *
+ * Uses the exact same BASE_URL and Bearer-token header as the fetch-based
+ * `request()` pipeline, and throws the same normalized `ApiError` on failure,
+ * so callers get identical behaviour plus progress reporting.
+ * Additive-only helper: existing `apiClient.upload` behaviour is untouched.
+ *
+ * @param {string} endpoint - API endpoint path (e.g. `/documents/{id}/upload`).
+ * @param {FormData} formData - Must contain the file under the `file` key.
+ * @param {(percent: number) => void} [onProgress] - Called with 0..100.
+ * @returns {Promise<any>} Parsed JSON response body (or null for 204).
+ */
+export const uploadWithProgress = (endpoint, formData, onProgress = null) =>
+  new Promise((resolve, reject) => {
+    const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+
+    const token = getAuthToken();
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (typeof onProgress === 'function' && xhr.upload) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let data = null;
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        data = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        reject(new ApiError(parseErrorMessage(xhr.status, data), xhr.status, data));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(
+        new ApiError('Network error. Please check your internet connection.', 0, null)
+      );
+    };
+
+    xhr.ontimeout = () => {
+      reject(new ApiError('Upload timed out. Please try again.', 0, null));
+    };
+
+    xhr.send(formData);
+  });
+
 export default apiClient;

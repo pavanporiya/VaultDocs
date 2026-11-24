@@ -1,38 +1,40 @@
 ============================================================================
- VAULTDOCS — HOW TO RUN (COPY-PASTE GUIDE)
- Last updated: 2026-09-24
+ VAULTDOCS — LOCAL EXECUTION & OPERATIONS RUNBOOK
+ Last Updated: 2026-10-23
 ============================================================================
- Is guide me har command aise likha hai ki aap seedha copy-paste karke
- project chala sako. Bas steps order me follow karo.
+ This runbook provides verified, step-by-step commands to configure,
+ launch, test, and maintain the VaultDocs application locally. Follow
+ each step in sequential order for initial setup or refer to the quick-start
+ section for subsequent development sessions.
 
- REQUIREMENTS (one-time install):
+ PREREQUISITES (One-time installation):
    1. Python 3.11+          -> https://www.python.org/downloads/
-   2. uv (Python manager)   -> install command niche STEP 1 me
-   3. Node.js 18+           -> https://nodejs.org
+   2. uv (Package Manager)  -> See installation instructions in STEP 1
+   3. Node.js 18+ (LTS)     -> https://nodejs.org
    4. Docker Desktop        -> https://www.docker.com/products/docker-desktop
-                               (database ke liye, easiest option)
+                               (Recommended method for database provisioning)
 
- Apna setup check karne ke liye (PowerShell / Terminal):
+ Environment Verification (PowerShell / Terminal):
    python --version
    node --version
    npm --version
    docker --version
 
 ============================================================================
- STEP 0 — CODE LAO
+ STEP 0 — CLONE OR LOCATE REPOSITORY
 ============================================================================
 
- Pehli baar (fresh clone):
+ For a new installation (fresh clone):
 
      git clone https://github.com/pavanporiya/VaultDocs.git
      cd VaultDocs
 
- Agar code pehle se hai, bas us folder me jao:
+ If the repository is already present, navigate to the project root:
 
      cd path/to/VaultDocs
 
 ============================================================================
- STEP 1 — uv INSTALL (agar pehle se nahi hai)
+ STEP 1 — INSTALL uv PACKAGE MANAGER (If not already installed)
 ============================================================================
 
  Windows (PowerShell):
@@ -43,202 +45,230 @@
 
      curl -LsSf https://astral.sh/uv/install.sh | sh
 
- Check:
+ Verify installation:
 
      uv --version
 
- NOTE: Install ke baad terminal ek baar band karke dobara kholna pad sakta hai.
+ NOTE: You may need to restart your terminal session after installation
+ for the `uv` executable to be recognized in your system PATH.
 
 ============================================================================
- STEP 2 — DATABASE START (PostgreSQL)
+ STEP 2 — PROVISION DATABASE (PostgreSQL)
 ============================================================================
 
- OPTION A (RECOMMENDED): Docker se database ek line me up (PERSISTENT DATA)
+ OPTION A (RECOMMENDED): Standalone Docker Container with Persistent Volume
 
      docker run -d --name vaultdocs-db -v vaultdocs-db-data:/var/lib/postgresql/data -e POSTGRES_DB=VaultDocs -e POSTGRES_USER=VaultDocs_user -e POSTGRES_PASSWORD=change-me-in-production -p 5433:5432 --restart unless-stopped postgres:16-alpine
 
- NOTE: `-v vaultdocs-db-data:/var/lib/postgresql/data` named volume use karta hai,
- jisse database ka poora data container stop ya recreate hone ke baad bhi 100% safe rehta hai.
+ NOTE: The `-v vaultdocs-db-data:/var/lib/postgresql/data` parameter uses a
+ named Docker volume. Your database contents remain fully persistent and safe
+ across container stops, restarts, or image rebuilds.
 
- Database band/stop karne ke liye (data delete nahi hoga):
+ To stop the database container (data remains intact):
 
      docker stop vaultdocs-db
 
- Dobara start karne ke liye:
+ To restart the database container:
 
      docker start vaultdocs-db
 
- OPTION B: docker compose (repo root se, sirf database service):
+ OPTION B: Docker Compose (Database service only from repo root):
 
      docker compose up -d db
 
- OPTION C: Agar PostgreSQL locally installed hai:
-     - .env file me apne database ki details bhar do (STEP 3 dekho)
-     - Database "VaultDocs" exist karna chahiye
+ OPTION C: Local PostgreSQL Installation:
+     - Ensure PostgreSQL service is active.
+     - Create a database named "VaultDocs".
+     - Update `.env` credentials accordingly (refer to STEP 3).
 
 ============================================================================
- STEP 3 — .env FILE (agar pehle se hai to SKIP karo)
+ STEP 3 — CONFIGURE ENVIRONMENT VARIABLES (.env)
 ============================================================================
 
- Project root me .env file banao aur ye content daalo:
+ Create a `.env` file in the project root directory with the following configuration:
 
-     # --- Database ---
+     # --- Database Configuration ---
      DATABASE_HOST=localhost
      DATABASE_PORT=5433
      DATABASE_NAME=VaultDocs
      DATABASE_USER=VaultDocs_user
      DATABASE_PASSWORD=change-me-in-production
 
-     # --- App ---
+     # --- Application Configuration ---
      APP_ENV=development
      DEBUG=true
      SECRET_KEY=change-this-to-any-random-secret-string
 
- NOTE:
-   - .env kabhi git me commit MAT karna.
-   - STEP 2 Option A wale docker command ke credentials upar wale se
-     exactly match karte hain, isliye ye combo seedha kaam karega.
+ NOTES:
+   - Never commit `.env` into version control. It is ignored by default.
+   - The credentials above match the STEP 2 Option A Docker container settings
+     and work immediately without modifications.
 
 ============================================================================
- STEP 4 — BACKEND SETUP (one-time dependencies install)
+ STEP 4 — BACKEND DEPENDENCY INSTALLATION
 ============================================================================
 
- Project root se:
+ From the repository root directory:
 
      uv sync
 
- Ye saare Python packages install kar dega (virtualenv khud ban jayega).
+ This installs all required Python packages and automatically provisions
+ an isolated virtual environment (`.venv`).
 
 ============================================================================
- STEP 5 — DATABASE TABLES BANAO (migrations)
+ STEP 5 — APPLY DATABASE MIGRATIONS
 ============================================================================
 
- Project root se:
+ From the repository root directory:
 
      uv run alembic upgrade head
 
- Ye command idempotent hai — jitni baar marzi chala sako,
- already-applied migrations dobara nahi chalenge.
+ NOTE: This operation is idempotent. It applies all pending schema changes
+ safely without reapplying previously executed migrations.
 
 ============================================================================
- STEP 6 — BACKEND START
+ STEP 6 — START BACKEND SERVER
 ============================================================================
 
- Project root se:
+ From the repository root directory:
 
      uv run uvicorn vaultdocs.main:app --port 8000
 
- Backend chalu hone ke baad ye check karo (naya terminal kholo):
+ Verify the backend status in a separate terminal:
 
      curl http://localhost:8000/v1/health
 
- Expected output me "healthy" aur "database":"connected" dikhna chahiye.
+ Expected response:
+     {"status":"healthy","database":"connected",...}
 
- API docs browser me: http://localhost:8000/docs
+ Interactive API Documentation (Swagger UI):
+     http://localhost:8000/docs
 
 ============================================================================
- STEP 7 — FRONTEND START (naya terminal kholo)
+ STEP 7 — START FRONTEND APPLICATION (Open a new terminal)
 ============================================================================
+
+ Navigate to the frontend directory and start the Vite dev server:
 
      cd frontend
      npm install
      npm run dev
 
- Terminal me Vite ek URL print karega, normally:
+ The Vite development server will display the local address, typically:
 
      Local: http://localhost:3000/
 
- Wahi URL browser me kholo. Bas — app chal rahi hai!
- Register karke login karo aur use karo.
+ Open this URL in your web browser. You can now register an account,
+ authenticate, and interact with the application.
 
- NOTE:
-   - Agar port 3000 busy hai to Vite khud 3001/3002 pe chala jayega —
-     jo URL terminal me print ho, WOHI use karo.
-   - Frontend ka /v1 proxy backend (localhost:8000) pe automatically
-     jaata hai, kuch karne ki zarurat nahi.
+ NOTES:
+   - If port 3000 is occupied, Vite will automatically select 3001 or 3002.
+     Always use the port displayed in your terminal.
+   - The Vite development server automatically proxies `/v1` API requests to
+     the FastAPI backend at `http://localhost:8000`. No extra proxy setup is needed.
 
 ============================================================================
- EK LINE ME (har naye session ke liye)
+ DAILY DEVELOPMENT QUICK-START (Subsequent Sessions)
 ============================================================================
 
- Terminal 1 (database, agar band hai):
+ Terminal 1 (Database — if not currently running):
      docker start vaultdocs-db
 
- Terminal 2 (backend):
+ Terminal 2 (Backend API):
      uv run uvicorn vaultdocs.main:app --port 8000
 
- Terminal 3 (frontend):
+ Terminal 3 (Frontend Client):
      cd frontend && npm run dev
 
- Browser: http://localhost:3000
+ Application URL:
+     http://localhost:3000
 
 ============================================================================
- TROUBLESHOOTING (common problems)
+ TROUBLESHOOTING & COMMON ISSUES
 ============================================================================
 
- 1) "relation users does not exist" / registration pe 500 error
-    -> Migrations nahi chale. Ye chalao:
-       uv run alembic upgrade head
+ 1) Error: "relation users does not exist" or HTTP 500 on registration
+    Cause: Database migrations have not been applied yet.
+    Resolution: Run the migration command from the project root:
+        uv run alembic upgrade head
 
- 2) Port 8000 already in use (WinError 10048)
-    -> Purana backend chal raha hai. Kill karo:
-       Windows:  netstat -ano | findstr :8000
-                 taskkill /PID <upar-wala-pid> /F
-       Mac/Linux: kill $(lsof -t -i:8000)
+ 2) Port 8000 already in use (WinError 10048 / EADDRINUSE)
+    Cause: A previous backend instance or orphaned process is holding port 8000.
+    Resolution: Terminate the blocking process:
+        Windows (PowerShell/CMD):
+            netstat -ano | findstr :8000
+            taskkill /PID <PID_NUMBER> /F
+        macOS / Linux:
+            kill $(lsof -t -i:8000)
 
- 3) "database connected" nahi aa raha / connection refused
-    -> Database container chal raha hai? Check:
-       docker ps
-    -> Nahi hai to STEP 2 wala command dobara chalao.
-    -> .env ke DATABASE_* values docker wale credentials se match karo.
+ 3) Database connection refused or "database": "disconnected" in health check
+    Cause: The PostgreSQL container is stopped or connection details do not match.
+    Resolution:
+        - Check container status:
+            docker ps
+        - If the container is stopped, start it:
+            docker start vaultdocs-db
+        - Ensure `.env` parameters (port 5433, user, password) match your container.
 
- 4) Frontend pe API errors (network/CORS jaisa kuch)
-    -> Backend port 8000 pe chal raha hai? Health check karo:
-       curl http://localhost:8000/v1/health
-    -> Backend restart karo.
+ 4) Frontend API or Network errors (CORS / Proxy failures)
+    Cause: Backend server is offline or not responding on port 8000.
+    Resolution:
+        - Verify backend health:
+            curl http://localhost:8000/v1/health
+        - Restart the backend server if necessary.
 
- 5) Login/Register me "invalid email" aa raha hai
-    -> Email proper domain wala hona chahiye, e.g. test@example.com
-       (.test jaise special-use domains backend reject karta hai).
+ 5) Registration or Login returns "invalid email"
+    Cause: The validation rules disallow non-standard or reserved testing domains
+           (such as `.test` or `.local`).
+    Resolution: Use standard email addresses (e.g., user@example.com).
 
- 6) npm install fail ho raha hai
-    -> Node version check karo (18+ chahiye): node --version
-    -> Phir ye try karo:
-       cd frontend
-       rmdir /s /q node_modules        (Windows)
-       rm -rf node_modules             (Mac/Linux)
-       del package-lock.json           (Windows)
-       rm package-lock.json            (Mac/Linux)
-       npm install
+ 6) `npm install` failures or dependency conflicts
+    Cause: Incompatible Node version or stale cache/lockfiles.
+    Resolution:
+        - Verify Node.js version (18+ required):
+            node --version
+        - Perform a clean dependency reset:
+            cd frontend
+            # Windows:
+            rmdir /s /q node_modules
+            del package-lock.json
+            # macOS / Linux:
+            rm -rf node_modules package-lock.json
+            # Reinstall:
+            npm install
 
- 7) "uv: command not found"
-    -> STEP 1 dobara karo aur terminal restart karo.
+ 7) Command not recognized: "uv: command not found"
+    Cause: Terminal PATH environment has not updated after installation.
+    Resolution: Restart your terminal session or repeat STEP 1.
 
- 8) Files upload nahi ho rahi
-    -> Max size 10MB hai (backend limit). Chhoti file se test karo.
+ 8) Document upload rejected or failing
+    Cause: File size exceeds the backend upload ceiling.
+    Resolution: The maximum allowed file size is 10 MB. Test with smaller payloads.
 
 ============================================================================
- OPTIONAL — FULL DOCKER MODE (backend + database dono containers me)
+ OPTIONAL — FULL DOCKER COMPOSE MODE (Containerized Backend + Database)
 ============================================================================
+
+ To launch the complete stack (backend and database) using Docker Compose:
 
      docker compose up -d --build
      uv run alembic upgrade head
      cd frontend && npm run dev
 
- Logs dekhne ke liye:
+ View backend application logs:
      docker compose logs -f app
 
-  Sab band karne ke liye (data safe rehta hai):
-      docker compose down
+ Stop the containerized stack safely (data volume is preserved):
+     docker compose down
 
-  CRITICAL WARNING — ye command KABHI MAT CHALAO (named volume delete kar deta hai):
-      # docker compose down -v   <-- DO NOT USE! Wipes database data volume.
+ CRITICAL WARNING — DO NOT EXECUTE THE FOLLOWING COMMAND:
+     # docker compose down -v   <-- DANGER: Drops persistent database volumes.
 
 ============================================================================
- QUALITY CHECKS (developers ke liye, optional)
+ CODE QUALITY, TESTING & AUTOMATION (For Developers)
 ============================================================================
 
- Backend Tests & Linters (project root se):
+ Backend Quality Checks & Test Suite (From project root):
 
       uv run pytest
       uv run ruff check .
@@ -246,41 +276,38 @@
       uv run mypy backend/src
       uv run alembic check
 
- NOTE ON TESTS SAFETY:
-   `uv run pytest` automatically connects strictly to the isolated database
-   `VaultDocs_test`. The test suite will immediately ABORT with a runtime error
-   if it ever attempts to connect to live `VaultDocs`. Your development data is safe.
+ TEST ISOLATION & DATA SAFETY GUARANTEE:
+   `uv run pytest` automatically connects exclusively to the isolated test
+   database `VaultDocs_test`. The test suite will immediately abort with a
+   runtime safety error if it ever attempts to target the primary `VaultDocs`
+   development database. Your live development data remains 100% protected.
 
-============================================================================
- DATABASE BACKUPS & RESTORE
-============================================================================
+ Database Backup & Restore Operations:
 
- Manual Backup (timestamped custom format .dump in D:\VaultDocs\backups):
+   Create manual snapshot (timestamped custom format `.dump` in `backups/`):
+       powershell -File scripts/backup_postgres.ps1
 
-      powershell -File scripts/backup_postgres.ps1
+   Safely restore a snapshot into a target database:
+       powershell -File scripts/restore_postgres.ps1 -DumpFile "backups\<filename>.dump" -TargetDatabase "VaultDocs_restore_test"
 
- Safe Restore (restores a dump into a target database):
-
-      powershell -File scripts/restore_postgres.ps1 -DumpFile "backups\<filename>.dump" -TargetDatabase "VaultDocs_restore_test"
-
-
- Frontend:
+ Frontend Linting & Production Build:
 
      cd frontend
      npm run lint
      npm run build
 
- Full E2E (backend + frontend chalu hone ke baad):
+ Full End-to-End Test Suite (Ensure backend on :8000 and frontend on :3000 are running):
 
      node scripts/e2e-api-verify.mjs
      node scripts/e2e-browser-qa.mjs http://localhost:3000
 
 ============================================================================
- QUICK FACTS
+ SYSTEM ARCHITECTURE & OPERATIONAL SUMMARY
 ============================================================================
- Backend  : FastAPI  -> http://localhost:8000  (docs: /docs)
- Frontend : React+Vite -> http://localhost:3000
- Database : PostgreSQL (host: localhost, port: 5433, db: VaultDocs)
- Migrations: uv run alembic upgrade head
- Auth     : JWT — register karke token localStorage me save hota hai
+ Backend Framework   : FastAPI (Python 3.11+) -> http://localhost:8000
+ Swagger / OpenAPI   : http://localhost:8000/docs
+ Frontend Application: React 19 + Vite        -> http://localhost:3000
+ Database            : PostgreSQL 16          -> localhost:5433 (DB: VaultDocs)
+ Migrations          : Alembic (command: uv run alembic upgrade head)
+ Authentication      : JWT Bearer Tokens (Persisted in browser localStorage)
 ============================================================================

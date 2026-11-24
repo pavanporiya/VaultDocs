@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader, Card, Select, Button, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import apiClient from '../../shared/services/apiClient';
+import SecuritySettings from './SecuritySettings';
 import { Save, RotateCcw, Cloud } from 'lucide-react';
 import './Account.css';
 
@@ -226,6 +227,9 @@ export const SettingsView = ({ onNavigate }) => {
           </div>
         </Card>
       </div>
+
+      {/* Sign-in security: trusted device management */}
+      <SecuritySettings />
 
       <Card title="Account Security Information" elevation="sm">
         <div className="vd-settings-section">

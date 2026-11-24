@@ -138,3 +138,109 @@
   gap: 0.75rem;
   margin-top: 1.5rem;
 }
+
+/* Bulk Upload modal (multi-file + folder upload) */
+.vd-bulk-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vd-bulk-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vd-bulk-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vd-bulk-rejected {
+  font-size: 0.8rem;
+  color: var(--color-danger, #d33);
+}
+
+.vd-bulk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 6px;
+}
+
+.vd-bulk-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--color-border, #eee);
+  font-size: 0.85rem;
+}
+
+.vd-bulk-item:last-child {
+  border-bottom: none;
+}
+
+.vd-bulk-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vd-bulk-item-size {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.vd-bulk-item-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 2px;
+  display: flex;
+}
+
+.vd-bulk-item-remove:hover {
+  color: var(--color-danger, #d33);
+}
+
+.vd-bulk-empty {
+  padding: 0.75rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.vd-bulk-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.vd-bulk-progress progress {
+  width: 80px;
+}
+
+.vd-bulk-status {
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.vd-bulk-status-done {
+  color: var(--color-success, #2a2);
+}
+
+.vd-bulk-status-error {
+  color: var(--color-danger, #d33);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

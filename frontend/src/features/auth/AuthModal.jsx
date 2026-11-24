@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Modal, Input, Button, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import { LogIn, UserPlus, Mail, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import LoginOtpPanel from './LoginOtpPanel';
+import { useLoginApproval } from './useLoginApproval';
 import './AuthView.css';
 import './AuthModal.css';
 
@@ -13,23 +15,50 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Pending sign-in approval flow (email OTP). The "Remember this device
+  // for 30 days" checkbox lives inside that OTP step, not on this form.
+  const approval = useLoginApproval();
+
   // OTP inputs & states
   const [otpCode, setOtpCode] = useState('');
   const [otpState, setOtpState] = useState('idle'); // 'idle' | 'sent' | 'invalid' | 'expired' | 'verified' | 'error'
   const [resending, setResending] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const { login, register, verifyOtp, resendOtp } = useAuth();
+  const { login, register, verifyOtp, resendOtp, isAuthenticated } = useAuth();
   const toast = useToast();
 
-  useEffect(() => {
+  // Every open starts a fresh login flow: clear any leftover approval
+  // challenge, success banner, cooldowns and poll timers from a previous
+  // session, so "Sign In" never resurrects a stale "Sign-in approved!"
+  // popup after logout. Layout effect: runs before paint, so the stale
+  // banner can never flash while the modal is opening.
+  const resetApproval = approval.reset;
+  useLayoutEffect(() => {
     if (isOpen) {
       setMode(initialMode);
       setError('');
       setOtpCode('');
       setOtpState('idle');
+      setResendTimer(0);
+      resetApproval();
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, resetApproval]);
+
+  // Logout (authenticated -> unauthenticated) clears every auth-flow
+  // leftover: challenge state, timers, pending callbacks and this modal.
+  const wasAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    const loggedOut = wasAuthenticatedRef.current && !isAuthenticated;
+    wasAuthenticatedRef.current = isAuthenticated;
+    if (loggedOut) {
+      resetApproval();
+      resetForm();
+      setResendTimer(0);
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, resetApproval, onClose]);
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -38,6 +67,20 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     }, 1000);
     return () => clearInterval(interval);
   }, [resendTimer]);
+
+  // Close the modal once the approval flow signs the user in.
+  useEffect(() => {
+    if (approval.status === 'approved') {
+      toast.success('Sign-in approved!', 'Welcome Back');
+      const timer = setTimeout(() => {
+        resetForm();
+        onClose();
+        resetApproval();
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [approval.status, resetApproval]);
 
   const resetForm = () => {
     setFullName('');
@@ -70,7 +113,14 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     setLoading(true);
     try {
       if (mode === 'login') {
-        await login(email, password);
+        const response = await login(email, password);
+
+        // Untrusted device: wait for the email approval code (OTP) first.
+        if (response && response.approval_required) {
+          approval.begin(response);
+          return;
+        }
+
         toast.success('Successfully logged in!', 'Welcome Back');
         resetForm();
         onClose();
@@ -175,12 +225,21 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       isOpen={isOpen}
       onClose={() => {
         resetForm();
+        resetApproval();
         onClose();
       }}
       title={getTitle()}
       size="sm"
     >
-      {mode === 'otp' ? (
+      {approval.challenge && approval.status !== 'idle' && mode === 'login' ? (
+        <LoginOtpPanel
+          approval={approval}
+          onBack={() => {
+            approval.cancel();
+            setError('');
+          }}
+        />
+      ) : mode === 'otp' ? (
         <form onSubmit={handleVerifyOtpSubmit} className="vd-auth-form" noValidate>
           <div style={{ textAlign: 'center', marginBottom: '0.25rem' }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #64748b)', margin: 0 }}>
@@ -339,20 +398,22 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           />
 
           {mode === 'login' && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
-              <button
-                type="button"
-                className="vd-auth-link-btn"
-                style={{ fontSize: '0.8125rem' }}
-                onClick={() => {
-                  onClose();
-                  window.history.pushState({}, '', '/forgot-password');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-              >
-                Forgot Password?
-              </button>
-            </div>
+            <>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
+                <button
+                  type="button"
+                  className="vd-auth-link-btn"
+                  style={{ fontSize: '0.8125rem' }}
+                  onClick={() => {
+                    onClose();
+                    window.history.pushState({}, '', '/forgot-password');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            </>
           )}
 
           <div className="vd-auth-actions">

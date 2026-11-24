@@ -2,7 +2,7 @@
 Main application entry point for VaultDocs.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from importlib import resources
 
@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """
     Handle application startup and shutdown events.
     Verifies database connectivity and database name before serving traffic.

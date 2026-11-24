@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -1606,6 +1606,17 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "factory-boy" },
+    { name = "faker" },
+    { name = "httpx" },
+    { name = "ipython" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
     { name = "types-passlib" },
     { name = "types-python-jose" },
 ]
@@ -1644,6 +1655,17 @@ provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "factory-boy", specifier = ">=3.3.0" },
+    { name = "faker", specifier = ">=33.0.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
+    { name = "ipython", specifier = ">=8.30.0" },
+    { name = "mypy", specifier = ">=1.14.0" },
+    { name = "pre-commit", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">=8.3.0" },
+    { name = "pytest-asyncio", specifier = ">=0.25.0" },
+    { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "ruff", specifier = ">=0.9.0" },
     { name = "types-passlib", specifier = ">=1.7.7.20260211" },
     { name = "types-python-jose", specifier = ">=3.5.0.20260408" },
 ]
