@@ -33,7 +33,6 @@ class LoginChallenge(Base, TimestampMixin):
     STATUS_CONSUMED = "consumed"
 
     # Delivery methods
-    DELIVERY_PUSH = "push"
     DELIVERY_EMAIL = "email"
 
     id: Mapped[uuid.UUID] = mapped_column(

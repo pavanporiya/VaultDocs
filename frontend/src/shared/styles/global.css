@@ -1,12 +1,15 @@
 @import './variables.css';
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   width: 100%;
   font-family: var(--font-family-base);
@@ -24,6 +27,7 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -49,7 +53,12 @@ button {
   font-family: inherit;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
@@ -92,6 +101,7 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -102,6 +112,7 @@ h1, h2, h3, h4, h5, h6 {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -112,6 +123,7 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -123,6 +135,7 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -130,9 +143,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes vd-pulse-subtle {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.02);
   }
@@ -162,4 +178,3 @@ body.vd-modal-open {
 body.vd-modal-open .vd-main-layout__content {
   overflow: hidden !important;
 }
-

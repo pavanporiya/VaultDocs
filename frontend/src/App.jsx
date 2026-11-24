@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './shared/context/AuthContext';
 import MainLayout from './shared/layouts/MainLayout';
 import AuthModal from './features/auth/AuthModal';
 import LoginView from './features/auth/LoginView';
-import ApproveLoginView from './features/auth/ApproveLoginView';
 import RegisterView from './features/auth/RegisterView';
 import DashboardView from './features/dashboard/DashboardView';
 import ExplorerView from './features/explorer/ExplorerView';
@@ -34,7 +33,6 @@ const ROUTES = [
   { path: '/shared', view: 'sharing' },
   { path: '/sharing', view: 'sharing' },
   { path: '/login', view: 'login' },
-  { path: '/approve-login', view: 'approveLogin' },
   { path: '/register', view: 'register' },
   { path: '/forgot-password', view: 'forgot-password' },
   { path: '/reset-password', view: 'reset-password' },
@@ -59,7 +57,6 @@ const NAV_PATH_MAP = {
   documentDetail: '/documents',
   sharing: '/shared',
   login: '/login',
-  approveLogin: '/approve-login',
   register: '/register',
   'forgot-password': '/forgot-password',
   'reset-password': '/reset-password',
@@ -121,8 +118,6 @@ const toPath = (target) => {
 // Views reachable without authentication; everything else redirects to /401.
 const PUBLIC_VIEWS = new Set([
   'login',
-  'approve-login',
-  'approveLogin',
   'register',
   'forgot-password',
   'reset-password',
@@ -231,8 +226,6 @@ function MainAppContent() {
         return <SharedView onOpenAuthModal={handleOpenAuthModal} onNavigate={handleNavigate} />;
       case 'login':
         return <LoginView onNavigate={handleNavigate} />;
-      case 'approveLogin':
-        return <ApproveLoginView onNavigate={handleNavigate} />;
       case 'forgot-password':
         return <LoginView onNavigate={handleNavigate} initialStep="forgot" />;
       case 'reset-password':

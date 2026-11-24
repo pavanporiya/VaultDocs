@@ -11,9 +11,8 @@ import {
   ArrowLeft,
   KeyRound,
   Lock,
-  Smartphone,
 } from 'lucide-react';
-import LoginApprovalPanel from './LoginApprovalPanel';
+import LoginOtpPanel from './LoginOtpPanel';
 import { useLoginApproval } from './useLoginApproval';
 import './AuthView.css';
 
@@ -35,11 +34,8 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
   const [error, setError] = useState('');
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
-  // "Remember this device for 30 days" — unchecked by default; approval is
-  // never granted automatically unless the user explicitly opts in.
-  const [rememberDevice, setRememberDevice] = useState(false);
-
-  // Pending sign-in approval flow (phone push / email code).
+  // Pending sign-in approval flow (email OTP). The "Remember this device
+  // for 30 days" checkbox lives inside that OTP step, not on this form.
   const approval = useLoginApproval();
 
   // Password Reset states
@@ -131,7 +127,7 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
 
     setLoading(true);
     try {
-      const response = await login(email, password, { rememberDevice });
+      const response = await login(email, password);
 
       // New/untrusted device: credentials were valid but the server demands
       // explicit approval before any token exists.
@@ -320,13 +316,13 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
     if (approval.status === 'approved') {
       toast.success('Sign-in approved!', 'Welcome Back');
       const timer = setTimeout(() => {
+        approval.reset();
         if (onNavigate) onNavigate('dashboard');
       }, 800);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [approval.status, onNavigate, toast]);
-
+  }, [approval.status, onNavigate, toast, approval.reset]);
   // Step: Forgot Password
   if (step === 'forgot') {
     return (
@@ -701,21 +697,13 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
 
         <form onSubmit={handleSubmit} className="vd-auth-form" noValidate>
           {approval.challenge && approval.status !== 'idle' ? (
-            <>
-              <div className="vd-auth-state-banner is-sent" role="status">
-                <Smartphone size={16} />
-                <span>
-                  <strong>Check your phone to approve this sign-in.</strong>
-                </span>
-              </div>
-              <LoginApprovalPanel
-                approval={approval}
-                onBack={() => {
-                  approval.cancel();
-                  setError('');
-                }}
-              />
-            </>
+            <LoginOtpPanel
+              approval={approval}
+              onBack={() => {
+                approval.cancel();
+                setError('');
+              }}
+            />
           ) : (
             <>
           {unverifiedEmail ? (
@@ -774,35 +762,6 @@ export const LoginView = ({ onNavigate, initialStep = 'login' }) => {
             required
             disabled={loading}
           />
-
-          <label
-            className="vd-auth-remember-device"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontSize: '0.8125rem',
-              color: 'var(--color-text-muted, #64748b)',
-              cursor: 'pointer',
-              marginTop: '-0.25rem',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={rememberDevice}
-              onChange={(e) => setRememberDevice(e.target.checked)}
-              disabled={loading}
-              aria-label="Remember this device for 30 days"
-              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-            />
-            <span>
-              Remember this device for 30 days{' '}
-              <span title="Only after you approve this sign-in from your phone">
-                🔒
-              </span>
-            </span>
-          </label>
-
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
             <button
               type="button"

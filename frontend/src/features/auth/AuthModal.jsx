@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Modal, Input, Button, useToast } from '../../shared/components';
 import { useAuth } from '../../shared/context/AuthContext';
 import { LogIn, UserPlus, Mail, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
-import LoginApprovalPanel from './LoginApprovalPanel';
+import LoginOtpPanel from './LoginOtpPanel';
 import { useLoginApproval } from './useLoginApproval';
 import './AuthView.css';
 import './AuthModal.css';
@@ -15,10 +15,8 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // "Remember this device for 30 days" — unchecked by default.
-  const [rememberDevice, setRememberDevice] = useState(false);
-
-  // Pending sign-in approval flow (phone push / email code).
+  // Pending sign-in approval flow (email OTP). The "Remember this device
+  // for 30 days" checkbox lives inside that OTP step, not on this form.
   const approval = useLoginApproval();
 
   // OTP inputs & states
@@ -77,12 +75,12 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       const timer = setTimeout(() => {
         resetForm();
         onClose();
+        resetApproval();
       }, 700);
       return () => clearTimeout(timer);
     }
     return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [approval.status]);
+  }, [approval.status, resetApproval]);
 
   const resetForm = () => {
     setFullName('');
@@ -115,9 +113,9 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     setLoading(true);
     try {
       if (mode === 'login') {
-        const response = await login(email, password, { rememberDevice });
+        const response = await login(email, password);
 
-        // New/untrusted device: wait for phone (or email) approval first.
+        // Untrusted device: wait for the email approval code (OTP) first.
         if (response && response.approval_required) {
           approval.begin(response);
           return;
@@ -227,13 +225,14 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       isOpen={isOpen}
       onClose={() => {
         resetForm();
+        resetApproval();
         onClose();
       }}
       title={getTitle()}
       size="sm"
     >
       {approval.challenge && approval.status !== 'idle' && mode === 'login' ? (
-        <LoginApprovalPanel
+        <LoginOtpPanel
           approval={approval}
           onBack={() => {
             approval.cancel();
@@ -400,42 +399,20 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
 
           {mode === 'login' && (
             <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
-              <button
-                type="button"
-                className="vd-auth-link-btn"
-                style={{ fontSize: '0.8125rem' }}
-                onClick={() => {
-                  onClose();
-                  window.history.pushState({}, '', '/forgot-password');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-              >
-                Forgot Password?
-              </button>
-            </div>
-
-            <label
-              className="vd-auth-remember-device"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.8125rem',
-                color: 'var(--color-text-muted, #64748b)',
-                cursor: 'pointer',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={rememberDevice}
-                onChange={(e) => setRememberDevice(e.target.checked)}
-                disabled={loading}
-                aria-label="Remember this device for 30 days"
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <span>Remember this device for 30 days</span>
-            </label>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.375rem' }}>
+                <button
+                  type="button"
+                  className="vd-auth-link-btn"
+                  style={{ fontSize: '0.8125rem' }}
+                  onClick={() => {
+                    onClose();
+                    window.history.pushState({}, '', '/forgot-password');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </>
           )}
 

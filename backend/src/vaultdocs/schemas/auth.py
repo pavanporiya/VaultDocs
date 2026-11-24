@@ -214,8 +214,9 @@ class ResetPasswordResponse(BaseModel):
 
     message: str
 
+
 # ---------------------------------------------------------------------------
-# Device approval / trusted device / push subscription schemas
+# Device approval / trusted device schemas
 # ---------------------------------------------------------------------------
 
 
@@ -228,8 +229,8 @@ class ApprovalRequiredResponse(BaseModel):
         description="Opaque, single-use sign-in approval challenge id.",
     )
 
-    delivery: Literal["push", "email"] = Field(
-        description="Approval channel in use: phone push or email code.",
+    delivery: Literal["email"] = Field(
+        description="Approval channel in use: email code (OTP).",
     )
 
     message: str
@@ -237,21 +238,6 @@ class ApprovalRequiredResponse(BaseModel):
     expires_in_seconds: int
 
     resend_cooldown_seconds: int
-
-
-class ChallengeStatusResponse(BaseModel):
-    """Sanitized status of a pending sign-in approval challenge."""
-
-    status: Literal[
-        "pending",
-        "approved",
-        "denied",
-        "expired",
-        "cancelled",
-        "consumed",
-    ]
-
-    expires_in_seconds: int
 
 
 class CompleteChallengeRequest(BaseModel):
@@ -262,13 +248,24 @@ class CompleteChallengeRequest(BaseModel):
         min_length=6,
         max_length=6,
         pattern=r"^\d{6}$",
-        description="Email fallback approval code (when no phone is registered).",
+        description="Single-use email approval code (OTP) for this sign-in.",
     )
 
     device_name: str | None = Field(
         default=None,
         max_length=100,
         description="Optional friendly name for the device being trusted.",
+    )
+
+    remember_device: bool | None = Field(
+        default=None,
+        description=(
+            "Explicit 'Remember this device for 30 days' decision from the OTP "
+            "step. When true AND the approval code verified, a server-verified "
+            "trusted-device record plus secure HttpOnly cookie are created for "
+            "30-day OTP bypass. When omitted, a login-time remember_device value "
+            "is kept (backward compatibility); false always wins."
+        ),
     )
 
 
@@ -285,7 +282,7 @@ class ResendChallengeResponse(BaseModel):
 
     message: str
 
-    delivery: Literal["push", "email"]
+    delivery: Literal["email"]
 
     resend_cooldown_seconds: int
 
@@ -316,66 +313,3 @@ class TrustedDeviceListResponse(BaseModel):
     """List of the current user's trusted devices."""
 
     devices: list[TrustedDeviceResponse]
-
-
-class PushKeys(BaseModel):
-    """Browser-provided Web Push encryption keys."""
-
-    p256dh: str = Field(
-        min_length=10,
-        max_length=128,
-    )
-
-    auth: str = Field(
-        min_length=10,
-        max_length=64,
-    )
-
-
-class PushSubscriptionRequest(BaseModel):
-    """Request body for registering a Web Push subscription."""
-
-    endpoint: str = Field(
-        min_length=1,
-        max_length=1024,
-    )
-
-    keys: PushKeys
-
-    device_name: str | None = Field(
-        default=None,
-        max_length=100,
-    )
-
-
-class PushSubscriptionResponse(BaseModel):
-    """Public representation of a push subscription (no encryption keys)."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-
-    endpoint: str
-
-    device_name: str | None = None
-
-    created_at: datetime
-
-    expires_at: datetime
-
-    last_success_at: datetime | None = None
-
-
-class PushSubscriptionListResponse(BaseModel):
-    """List of the current user's push subscriptions."""
-
-    subscriptions: list[PushSubscriptionResponse]
-
-
-class VapidKeyResponse(BaseModel):
-    """VAPID public key discovery response."""
-
-    enabled: bool
-
-    public_key: str | None = None
-

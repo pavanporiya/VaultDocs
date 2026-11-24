@@ -228,7 +228,7 @@ export const SettingsView = ({ onNavigate }) => {
         </Card>
       </div>
 
-      {/* Sign-in approval: Web Push setup + trusted device management */}
+      {/* Sign-in security: trusted device management */}
       <SecuritySettings />
 
       <Card title="Account Security Information" elevation="sm">

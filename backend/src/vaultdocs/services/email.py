@@ -354,6 +354,7 @@ def send_password_reset_email(
             f"Failed to deliver password reset email via SMTP ({type(exc).__name__})."
         ) from None
 
+
 def send_login_approval_email(
     to_email: str,
     recipient_name: str,
@@ -363,9 +364,9 @@ def send_login_approval_email(
     """
     Send a sign-in approval email containing a single-use 6-digit code.
 
-    Used as the secure fallback approval channel when no trusted phone
-    (Web Push subscription) is registered for the account. The code only
-    approves the pending sign-in challenge; it never grants trust by itself.
+    Used as the secure sign-in approval channel from an untrusted device.
+    The code only approves the pending sign-in challenge; it never grants
+    trust by itself.
     Raises EmailDeliveryError if SMTP is unconfigured or transmission fails.
     Never logs credentials or plain text codes.
     """
@@ -471,4 +472,3 @@ def send_login_approval_email(
         raise EmailDeliveryError(
             f"Failed to deliver sign-in approval email via SMTP ({type(exc).__name__})."
         ) from None
-

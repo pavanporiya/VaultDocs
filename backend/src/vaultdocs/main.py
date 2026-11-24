@@ -2,7 +2,7 @@
 Main application entry point for VaultDocs.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from importlib import resources
 
@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """
     Handle application startup and shutdown events.
     Verifies database connectivity and database name before serving traffic.
@@ -43,24 +43,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         settings.app_version,
         settings.app_environment,
     )
-
-    # Startup Safety Guard: validate Web Push (VAPID) configuration so a
-    # partially configured key pair fails safely instead of silently
-    # breaking (or weakening) sign-in approvals.
-    try:
-        settings.validate_push_configuration()
-    except RuntimeError as exc:
-        logger.critical(str(exc))
-        raise
-    from vaultdocs.services.push import is_push_enabled
-
-    if is_push_enabled():
-        logger.info("Web Push sign-in approvals enabled (VAPID keys configured).")
-    else:
-        logger.warning(
-            "Web Push not configured (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY unset). "
-            "Sign-in approvals will use the email code fallback."
-        )
 
     # Startup Safety Guard: verify database connectivity and target database name
     try:

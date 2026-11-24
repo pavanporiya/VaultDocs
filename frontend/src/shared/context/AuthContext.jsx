@@ -39,8 +39,8 @@ export const AuthProvider = ({ children }) => {
       remember_device: !!options.rememberDevice,
     });
 
-    // New/untrusted device: the server demands phone (or email) approval
-    // first. No token exists yet — hand the challenge to the caller.
+    // Untrusted device: the server demands email approval (OTP) first.
+    // No token exists yet — hand the challenge to the caller.
     if (response && response.approval_required) {
       return response;
     }
@@ -55,20 +55,27 @@ export const AuthProvider = ({ children }) => {
     throw new Error('Login failed: Token not returned');
   };
 
-  /** Poll the sanitized status of a pending sign-in approval challenge. */
-  const getChallengeStatus = (challengeId) =>
-    apiClient.get(`/auth/login/challenges/${encodeURIComponent(challengeId)}`);
+  /** Re-send a fresh email approval code for a pending challenge. */
+  const resendChallenge = (challengeId) =>
+    apiClient.post(`/auth/login/challenges/${encodeURIComponent(challengeId)}/resend`);
 
   /**
    * Finish an approved sign-in challenge. On success the JWT is stored and
-   * the user is loaded, exactly like a normal login.
+   * the user is loaded, exactly like a normal login. `rememberDevice`
+   * (the "Remember this device for 30 days" checkbox shown with the OTP)
+   * is only honored together with a verified approval code; the server
+   * creates the trusted-device record + HttpOnly cookie.
    */
-  const completeChallenge = async (challengeId, { approvalCode, deviceName } = {}) => {
+  const completeChallenge = async (
+    challengeId,
+    { approvalCode, deviceName, rememberDevice } = {}
+  ) => {
     const response = await apiClient.post(
       `/auth/login/challenges/${encodeURIComponent(challengeId)}/complete`,
       {
         approval_code: approvalCode || null,
         device_name: deviceName || null,
+        remember_device: !!rememberDevice,
       }
     );
     if (response && response.access_token) {
@@ -84,18 +91,6 @@ export const AuthProvider = ({ children }) => {
   /** Cancel a pending sign-in challenge from this (waiting) browser. */
   const cancelChallenge = (challengeId) =>
     apiClient.post(`/auth/login/challenges/${encodeURIComponent(challengeId)}/cancel`);
-
-  /** Re-send the approval prompt (push re-delivery or a fresh email code). */
-  const resendChallenge = (challengeId) =>
-    apiClient.post(`/auth/login/challenges/${encodeURIComponent(challengeId)}/resend`);
-
-  /** Approve a pending sign-in from a trusted device (phone/PWA). */
-  const approveChallenge = (challengeId) =>
-    apiClient.post(`/auth/login/challenges/${encodeURIComponent(challengeId)}/approve`);
-
-  /** Deny a pending sign-in from a trusted device (phone/PWA). */
-  const denyChallenge = (challengeId) =>
-    apiClient.post(`/auth/login/challenges/${encodeURIComponent(challengeId)}/deny`);
 
   const register = async (fullName, email, password) => {
     const registerResponse = await apiClient.post('/auth/register', {
@@ -163,12 +158,9 @@ export const AuthProvider = ({ children }) => {
     forgotPassword,
     verifyResetToken,
     resetPassword,
-    getChallengeStatus,
     completeChallenge,
     cancelChallenge,
     resendChallenge,
-    approveChallenge,
-    denyChallenge,
     logout,
     refreshUser: fetchCurrentUser,
   };

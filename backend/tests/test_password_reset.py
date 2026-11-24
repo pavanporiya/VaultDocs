@@ -257,9 +257,7 @@ async def test_reset_password_success_and_login(
     assert approval["approval_required"] is True
 
     approval_code = [
-        entry["otp_code"]
-        for entry in get_test_outbox()
-        if entry.get("type") == "login_approval"
+        entry["otp_code"] for entry in get_test_outbox() if entry.get("type") == "login_approval"
     ][-1]
     complete_res = await client.post(
         f"/v1/auth/login/challenges/{approval['challenge_id']}/complete",

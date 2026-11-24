@@ -1,47 +1,36 @@
 /**
- * Shared state for the "Check your phone to approve this sign-in" waiting
- * screen used by LoginView and AuthModal.
+ * Shared state for the email OTP sign-in step used by LoginView and AuthModal.
  *
- * Handles: polling the challenge status (push delivery), email approval
- * code submission, resend with cooldown, cancel, and terminal states
- * (approved / denied / expired / cancelled) that always block or complete
- * the login deterministically.
+ * Flow: valid credentials from an untrusted device → 202 challenge → the
+ * server emails a single-use 6-digit code → the user enters it (with the
+ * optional "Remember this device for 30 days" checkbox) → complete issues
+ * the JWT and, when the checkbox was checked, a trusted-device cookie.
+ *
+ * Handles: code submission, resend with cooldown, cancel, and terminal
+ * states (approved / expired / cancelled) that always block or complete
+ * the login deterministically. No push notifications or status polling —
+ * the email OTP is the only approval channel.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 
-const POLL_INTERVAL_MS = 3000;
-
 export const useLoginApproval = () => {
-  const {
-    completeChallenge,
-    getChallengeStatus,
-    cancelChallenge,
-    resendChallenge,
-  } = useAuth();
+  const { completeChallenge, cancelChallenge, resendChallenge } = useAuth();
 
-  const [challenge, setChallenge] = useState(null); // { challenge_id, delivery, ... }
-  const [status, setStatus] = useState('idle'); // 'idle' | 'waiting' | 'approved' | 'denied' | 'expired' | 'cancelled' | 'error'
+  const [challenge, setChallenge] = useState(null); // { challenge_id, delivery: 'email', ... }
+  const [status, setStatus] = useState('idle'); // 'idle' | 'waiting' | 'approved' | 'expired' | 'cancelled' | 'error'
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [deviceRemembered, setDeviceRemembered] = useState(false);
-  const pollRef = useRef(null);
   const finishingRef = useRef(false);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  // Full cleanup: stop polling, drop the challenge, kill cooldowns and
-  // pending finish callbacks. Used when the modal reopens (fresh sign-in
-  // flow) and when the user logs out — no state may survive a session.
+  // Full cleanup: drop the challenge, cooldowns and pending finish
+  // callbacks. Used when the modal reopens (fresh sign-in flow) and when
+  // the user logs out — no state may survive a session.
   const reset = useCallback(() => {
-    stopPolling();
     finishingRef.current = false;
     setChallenge(null);
     setStatus('idle');
@@ -49,78 +38,21 @@ export const useLoginApproval = () => {
     setBusy(false);
     setCode('');
     setResendIn(0);
+    setRememberDevice(false);
     setDeviceRemembered(false);
-  }, [stopPolling]);
+  }, []);
 
   // Reset everything when a new challenge starts.
-  const begin = useCallback(
-    (approvalPayload) => {
-      stopPolling();
-      finishingRef.current = false;
-      setChallenge(approvalPayload);
-      setStatus('waiting');
-      setError('');
-      setCode('');
-      setDeviceRemembered(false);
-      setResendIn(approvalPayload?.resend_cooldown_seconds || 0);
-    },
-    [stopPolling]
-  );
-
-  const finish = useCallback(
-    async (challengeId) => {
-      if (finishingRef.current) return;
-      finishingRef.current = true;
-      try {
-        const response = await completeChallenge(challengeId);
-        setDeviceRemembered(!!response?.device_remembered);
-        setStatus('approved');
-      } catch (err) {
-        finishingRef.current = false;
-        const message =
-          err?.message || 'Sign-in could not be completed. Please try again.';
-        setError(message);
-        setStatus('error');
-      }
-    },
-    [completeChallenge]
-  );
-
-  // Poll while the phone decision is pending (push delivery only).
-  useEffect(() => {
-    if (!challenge || status !== 'waiting' || challenge.delivery !== 'push') {
-      return undefined;
-    }
-    const challengeId = challenge.challenge_id;
-    pollRef.current = setInterval(async () => {
-      try {
-        const result = await getChallengeStatus(challengeId);
-        if (result?.status === 'approved') {
-          stopPolling();
-          await finish(challengeId);
-        } else if (result?.status === 'denied') {
-          stopPolling();
-          setStatus('denied');
-          setError('Sign-in denied from your trusted device.');
-        } else if (result?.status === 'expired') {
-          stopPolling();
-          setStatus('expired');
-          setError('This sign-in request expired. Please sign in again.');
-        } else if (result?.status === 'cancelled') {
-          stopPolling();
-          setStatus('cancelled');
-        }
-      } catch (err) {
-        // 404: challenge no longer exists. Transient errors keep polling.
-        if (err?.status === 404) {
-          stopPolling();
-          setStatus('error');
-          setError('Sign-in request not found. Please sign in again.');
-        }
-      }
-    }, POLL_INTERVAL_MS);
-    return stopPolling;
-  }, [challenge, status, getChallengeStatus, finish, stopPolling]);
+  const begin = useCallback((approvalPayload) => {
+    finishingRef.current = false;
+    setChallenge(approvalPayload);
+    setStatus('waiting');
+    setError('');
+    setCode('');
+    setRememberDevice(false);
+    setDeviceRemembered(false);
+    setResendIn(approvalPayload?.resend_cooldown_seconds || 0);
+  }, []);
 
   // Resend cooldown countdown.
   useEffect(() => {
@@ -137,6 +69,7 @@ export const useLoginApproval = () => {
       try {
         const response = await completeChallenge(challenge.challenge_id, {
           approvalCode: cleanCode,
+          rememberDevice,
         });
         setDeviceRemembered(!!response?.device_remembered);
         setStatus('approved');
@@ -147,13 +80,13 @@ export const useLoginApproval = () => {
         setBusy(false);
       }
     },
-    [challenge, completeChallenge]
+    [challenge, completeChallenge, rememberDevice]
   );
 
   const submitCode = useCallback(async () => {
     const clean = (code || '').trim();
     if (!/^\d{6}$/.test(clean)) {
-      setError('Please enter the 6-digit approval code from your email.');
+      setError('Please enter the 6-digit code from your email.');
       return;
     }
     setError('');
@@ -167,9 +100,8 @@ export const useLoginApproval = () => {
     try {
       const result = await resendChallenge(challenge.challenge_id);
       setResendIn(result?.resend_cooldown_seconds || 60);
-      setChallenge((prev) => ({ ...prev, delivery: result?.delivery || prev.delivery }));
     } catch (err) {
-      setError(err?.message || 'Could not resend the approval. Please wait and try again.');
+      setError(err?.message || 'Could not resend the code. Please wait and try again.');
     } finally {
       setBusy(false);
     }
@@ -177,7 +109,6 @@ export const useLoginApproval = () => {
 
   const cancel = useCallback(async () => {
     if (!challenge) return;
-    stopPolling();
     try {
       await cancelChallenge(challenge.challenge_id);
     } catch {
@@ -185,7 +116,7 @@ export const useLoginApproval = () => {
     }
     setStatus('cancelled');
     setChallenge(null);
-  }, [challenge, cancelChallenge, stopPolling]);
+  }, [challenge, cancelChallenge]);
 
   return {
     challenge,
@@ -195,14 +126,14 @@ export const useLoginApproval = () => {
     code,
     setCode,
     resendIn,
+    rememberDevice,
+    setRememberDevice,
     deviceRemembered,
     begin,
     reset,
     submitCode,
     resend,
     cancel,
-    isEmailDelivery: challenge?.delivery === 'email',
-    isPushDelivery: challenge?.delivery === 'push',
   };
 };
 

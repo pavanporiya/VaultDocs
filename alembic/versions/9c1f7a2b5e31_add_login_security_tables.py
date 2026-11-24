@@ -1,12 +1,16 @@
-"""add login challenges, trusted devices and push subscriptions tables
+"""add login challenges and trusted devices tables
 
 Revision ID: 9c1f7a2b5e31
 Revises: e8f1b2c3d4e5
 Create Date: 2026-10-17
 
-Additive-only migration: creates three new tables for the device-approval
-sign-in flow. No existing tables, rows or constraints are modified, so all
-existing users, documents, folders, permissions and sessions are preserved.
+Additive-only migration: creates two new tables for the email-OTP
+sign-in approval + trusted-device flow. No existing tables, rows or
+constraints are modified, so all existing users, documents, folders,
+permissions and sessions are preserved. (The Web Push approval feature
+was removed before this migration shipped; a push_subscriptions table
+created by an earlier local run of this revision is simply left in
+place — it is never dropped, keeping this migration non-destructive.)
 """
 
 from collections.abc import Sequence
@@ -136,74 +140,9 @@ def upgrade() -> None:
         unique=False,
     )
 
-    op.create_table(
-        "push_subscriptions",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("user_id", sa.Uuid(), nullable=False),
-        sa.Column("endpoint", sa.String(length=1024), nullable=False),
-        sa.Column("p256dh", sa.String(length=128), nullable=False),
-        sa.Column("auth", sa.String(length=64), nullable=False),
-        sa.Column("user_agent", sa.String(length=255), nullable=True),
-        sa.Column("device_name", sa.String(length=100), nullable=True),
-        sa.Column("last_success_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("failure_count", sa.Integer(), nullable=False),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        op.f("ix_push_subscriptions_user_id"),
-        "push_subscriptions",
-        ["user_id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_push_subscriptions_endpoint"),
-        "push_subscriptions",
-        ["endpoint"],
-        unique=True,
-    )
-    op.create_index(
-        op.f("ix_push_subscriptions_expires_at"),
-        "push_subscriptions",
-        ["expires_at"],
-        unique=False,
-    )
-
 
 def downgrade() -> None:
     """Drop the login security tables (no other data touched)."""
-    op.drop_index(
-        op.f("ix_push_subscriptions_expires_at"),
-        table_name="push_subscriptions",
-    )
-    op.drop_index(
-        op.f("ix_push_subscriptions_endpoint"),
-        table_name="push_subscriptions",
-    )
-    op.drop_index(
-        op.f("ix_push_subscriptions_user_id"),
-        table_name="push_subscriptions",
-    )
-    op.drop_table("push_subscriptions")
-
     op.drop_index(
         op.f("ix_login_challenges_expires_at"),
         table_name="login_challenges",

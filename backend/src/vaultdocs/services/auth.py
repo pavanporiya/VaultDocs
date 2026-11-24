@@ -464,7 +464,7 @@ async def reset_user_password(
     await db.commit()
     await db.refresh(user)
 
-    # Security event: revoke every trusted device and push subscription so
+    # Security event: revoke every trusted device so
     # stale device trust never survives a credential reset. Imported lazily
     # to avoid a module-level circular import.
     from vaultdocs.services.device_approval import (

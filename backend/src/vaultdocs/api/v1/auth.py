@@ -18,7 +18,6 @@ from vaultdocs.models.login_challenge import LoginChallenge
 from vaultdocs.schemas.auth import (
     ApprovalRequiredResponse,
     ChallengeActionResponse,
-    ChallengeStatusResponse,
     CompleteChallengeRequest,
     ForgotPasswordRequest,
     ForgotPasswordResponse,
@@ -57,11 +56,9 @@ from vaultdocs.services.device_approval import (
     complete_login_challenge,
     create_login_challenge,
     create_trusted_device,
-    get_challenge_status,
     get_valid_trusted_device,
     is_https_request,
     resend_login_challenge,
-    resolve_challenge,
     set_device_cookie,
     touch_trusted_device,
 )
@@ -70,7 +67,6 @@ from vaultdocs.services.email import EmailDeliveryError
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from vaultdocs.models.trusted_device import TrustedDevice
     from vaultdocs.models.user import User
 
 router = APIRouter(
@@ -96,29 +92,6 @@ def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> None:
             detail=str(exc),
             headers={"Retry-After": str(exc.retry_after_seconds)},
         ) from exc
-
-
-async def _require_trusted_approver(
-    db: AsyncSession,
-    current_user: User,
-    request: Request,
-) -> TrustedDevice:
-    """
-    Approving/denying a sign-in requires an authenticated session *and* a
-    valid trusted-device cookie for the same user. An untrusted session can
-    therefore never approve its own sign-in.
-    """
-    device_cookie = request.cookies.get(DEVICE_COOKIE_NAME)
-    device = await get_valid_trusted_device(db, current_user.id, device_cookie)
-    if device is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Approving sign-ins requires a trusted device session on this "
-                "browser. Sign in on this device first."
-            ),
-        )
-    return device
 
 
 @router.post(
@@ -263,8 +236,7 @@ async def login(
     Returns a JWT immediately only when the request arrives from a trusted
     device whose trust has not expired or been revoked. Otherwise returns
     HTTP 202 with a short-lived, single-use approval challenge: no JWT is
-    issued until the sign-in is approved from a trusted phone (Web Push) or
-    with the email approval code fallback.
+    issued until the sign-in is approved with the email approval code (OTP).
     """
     client_ip = _client_ip(request)
     normalized_email = login_data.email.strip().lower()
@@ -348,15 +320,10 @@ async def login(
             ),
         ) from exc
 
-    is_push = challenge.delivery_method == LoginChallenge.DELIVERY_PUSH
     approval = ApprovalRequiredResponse(
         challenge_id=challenge.challenge_id,
-        delivery=challenge.delivery_method,
-        message=(
-            "Check your phone to approve this sign-in."
-            if is_push
-            else "Approve this sign-in with the code we emailed you."
-        ),
+        delivery="email",
+        message="Approve this sign-in with the code we emailed you.",
         expires_in_seconds=settings.login_challenge_expire_seconds,
         resend_cooldown_seconds=settings.login_approval_code_cooldown_seconds,
     )
@@ -511,39 +478,10 @@ async def update_me(
 
     return UserResponse.model_validate(updated_user)
 
+
 # ---------------------------------------------------------------------------
 # Sign-in approval challenge endpoints
 # ---------------------------------------------------------------------------
-
-
-@router.get(
-    "/login/challenges/{challenge_id}",
-    response_model=ChallengeStatusResponse,
-)
-async def get_login_challenge_status(
-    challenge_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> ChallengeStatusResponse:
-    """
-    Poll the status of a pending sign-in approval challenge.
-
-    Rate limited; returns only a sanitized status so it cannot be used as an
-    oracle for account existence.
-    """
-    _enforce_rate_limit(
-        f"poll:{challenge_id}",
-        settings.rate_limit_poll_attempts,
-        settings.rate_limit_poll_window_seconds,
-    )
-    try:
-        payload = await get_challenge_status(db, challenge_id)
-    except ChallengeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sign-in request not found.",
-        ) from exc
-
-    return ChallengeStatusResponse(**payload)
 
 
 @router.post(
@@ -577,6 +515,7 @@ async def complete_login_challenge_endpoint(
             db,
             challenge_id,
             approval_code=request_data.approval_code,
+            remember_device=request_data.remember_device,
         )
     except ChallengeNotFoundError as exc:
         raise HTTPException(
@@ -626,7 +565,7 @@ async def resend_login_challenge_endpoint(
     db: AsyncSession = Depends(get_db),
 ) -> ResendChallengeResponse:
     """
-    Re-dispatch the approval prompt (push or email code) for a pending
+    Re-dispatch a fresh email approval code for a pending
     challenge. Enforces cooldowns and rate limits.
     """
     _enforce_rate_limit(
@@ -636,7 +575,7 @@ async def resend_login_challenge_endpoint(
     )
 
     try:
-        challenge = await resend_login_challenge(db, challenge_id)
+        await resend_login_challenge(db, challenge_id)
     except ChallengeNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -653,113 +592,10 @@ async def resend_login_challenge_endpoint(
             detail="Unable to send sign-in approval. Please try again later.",
         ) from exc
 
-    is_push = challenge.delivery_method == LoginChallenge.DELIVERY_PUSH
     return ResendChallengeResponse(
-        message=(
-            "Sign-in approval re-sent to your phone."
-            if is_push
-            else "A new sign-in approval code was emailed to you."
-        ),
-        delivery=challenge.delivery_method,
+        message="A new sign-in approval code was emailed to you.",
+        delivery="email",
         resend_cooldown_seconds=settings.login_approval_code_cooldown_seconds,
-    )
-
-
-@router.post(
-    "/login/challenges/{challenge_id}/approve",
-    response_model=ChallengeActionResponse,
-)
-async def approve_login_challenge(
-    challenge_id: str,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> ChallengeActionResponse:
-    """
-    Approve a pending sign-in challenge from a trusted device.
-
-    Requires an authenticated session plus a valid trusted-device cookie
-    belonging to the same user; the waiting session can never approve itself.
-    """
-    _enforce_rate_limit(
-        f"approve:{current_user.id}",
-        settings.rate_limit_approve_attempts,
-        settings.rate_limit_login_window_seconds,
-    )
-
-    approver_device = await _require_trusted_approver(db, current_user, request)
-
-    try:
-        await resolve_challenge(
-            db,
-            challenge_id,
-            approver=current_user,
-            approver_device=approver_device,
-            approve=True,
-            ip_address=_client_ip(request),
-        )
-    except ChallengeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sign-in request not found.",
-        ) from exc
-    except ChallengeStateError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail=str(exc),
-        ) from exc
-
-    return ChallengeActionResponse(
-        status=LoginChallenge.STATUS_APPROVED,
-        message="Sign-in approved. The device can now finish signing in.",
-    )
-
-
-@router.post(
-    "/login/challenges/{challenge_id}/deny",
-    response_model=ChallengeActionResponse,
-)
-async def deny_login_challenge(
-    challenge_id: str,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> ChallengeActionResponse:
-    """
-    Deny a pending sign-in challenge from a trusted device. Denial blocks
-    the login permanently for that challenge.
-    """
-    _enforce_rate_limit(
-        f"approve:{current_user.id}",
-        settings.rate_limit_approve_attempts,
-        settings.rate_limit_login_window_seconds,
-    )
-
-    approver_device = await _require_trusted_approver(db, current_user, request)
-
-    try:
-        await resolve_challenge(
-            db,
-            challenge_id,
-            approver=current_user,
-            approver_device=approver_device,
-            approve=False,
-            ip_address=_client_ip(request),
-        )
-    except ChallengeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sign-in request not found.",
-        ) from exc
-    except ChallengeStateError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail=str(exc),
-        ) from exc
-
-    return ChallengeActionResponse(
-        status=LoginChallenge.STATUS_DENIED,
-        message="Sign-in denied. The request will not be allowed.",
     )
 
 
@@ -798,4 +634,3 @@ async def cancel_login_challenge(
         status=LoginChallenge.STATUS_CANCELLED,
         message="Sign-in request cancelled.",
     )
-

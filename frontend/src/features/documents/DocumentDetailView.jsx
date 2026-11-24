@@ -933,28 +933,6 @@ export const DocumentDetailView = ({ documentId, onNavigate }) => {
         </Card>
       </div>
 
-      {/* Document intelligence: extraction status, summary, key points, tags */}
-      <div className="vd-docdetail-intel-wrap">
-        <Card
-          title="Document Intelligence"
-          subtitle="Extracted text, generated tags, and summary"
-          elevation="sm"
-          headerAction={
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Sparkles}
-              onClick={fetchIntelligence}
-              disabled={intelState === 'loading'}
-            >
-              Refresh
-            </Button>
-          }
-        >
-          {renderIntelligence()}
-        </Card>
-      </div>
-
       {/* Upload / Replace (owners only) */}
       {canEdit && (
         <UploadModal

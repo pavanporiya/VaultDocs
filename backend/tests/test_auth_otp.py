@@ -429,9 +429,7 @@ async def test_verified_user_login_succeeds(client: AsyncClient) -> None:
 
     # Approve via the emailed sign-in approval code (no trusted phone yet).
     approval_code = [
-        entry["otp_code"]
-        for entry in get_test_outbox()
-        if entry.get("type") == "login_approval"
+        entry["otp_code"] for entry in get_test_outbox() if entry.get("type") == "login_approval"
     ][-1]
     complete_res = await client.post(
         f"/v1/auth/login/challenges/{approval['challenge_id']}/complete",

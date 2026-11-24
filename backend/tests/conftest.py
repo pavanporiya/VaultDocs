@@ -8,7 +8,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from vaultdocs.core.settings import settings
 
@@ -75,23 +80,6 @@ def _reset_rate_limiter() -> Generator[None]:
 
 
 @pytest.fixture(autouse=True)
-def _force_mock_push() -> Generator[None]:
-    """
-    Force isolated in-memory mock Web Push during all automated test runs.
-
-    Guarantees no real push network calls are ever made during testing.
-    Individual tests may disable mock mode to exercise the email fallback.
-    """
-    from vaultdocs.services.push import clear_push_outbox, set_mock_push
-
-    set_mock_push(True)
-    clear_push_outbox()
-    yield
-    clear_push_outbox()
-    set_mock_push(False)
-
-
-@pytest.fixture(autouse=True)
 def _force_mock_smtp() -> Generator[None]:
     """
     Force isolated in-memory mock SMTP during all automated test runs.
@@ -108,7 +96,7 @@ def _force_mock_smtp() -> Generator[None]:
 
 
 @pytest.fixture
-async def db_engine():
+async def db_engine() -> AsyncGenerator[AsyncEngine]:
     """
     Create an isolated test database engine.
     Guarantees Base.metadata.create_all and drop_all NEVER run against development DB.
@@ -158,7 +146,7 @@ async def db_engine():
 
 
 @pytest.fixture
-async def db_session(db_engine) -> AsyncGenerator[AsyncSession]:
+async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
     """
     Yield an async database session wrapped in a transaction that rolls back.
     """
@@ -229,7 +217,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     HTTP client for testing API endpoints with overridden db dependency.
     """
 
-    async def _override_get_db():
+    async def _override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db

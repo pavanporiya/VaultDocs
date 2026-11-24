@@ -270,11 +270,11 @@
 
  Backend Quality Checks & Test Suite (From project root):
 
-     uv run pytest
-     uv run ruff check .
-     uv run ruff format --check .
-     uv run mypy backend/src
-     uv run alembic check
+      uv run pytest
+      uv run ruff check .
+      uv run ruff format --check .
+      uv run mypy backend/src
+      uv run alembic check
 
  TEST ISOLATION & DATA SAFETY GUARANTEE:
    `uv run pytest` automatically connects exclusively to the isolated test

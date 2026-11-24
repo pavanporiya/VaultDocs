@@ -34,7 +34,6 @@ TEST_DB_NAME = "VaultDocs_test"
 LOGIN_SECURITY_TABLES = (
     "login_challenges",
     "trusted_devices",
-    "push_subscriptions",
 )
 
 
@@ -102,14 +101,10 @@ def test_upgrade_creates_login_security_tables(migrated_engine) -> None:
     assert "users" in tables
 
     # Unique index on the device credential hash (only hashes stored).
-    device_indexes = {
-        index["name"] for index in inspector.get_indexes("trusted_devices")
-    }
+    device_indexes = {index["name"] for index in inspector.get_indexes("trusted_devices")}
     assert "ix_trusted_devices_device_token_hash" in device_indexes
 
-    challenge_indexes = {
-        index["name"] for index in inspector.get_indexes("login_challenges")
-    }
+    challenge_indexes = {index["name"] for index in inspector.get_indexes("login_challenges")}
     assert "ix_login_challenges_challenge_id" in challenge_indexes
 
 

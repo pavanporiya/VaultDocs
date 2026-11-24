@@ -124,6 +124,7 @@ def create_password_reset_token(
     """
     return generate_password_reset_token()
 
+
 # -----------------------------------------------------------------------------
 # Generic hashing / random token helpers (device approval flow)
 # -----------------------------------------------------------------------------
@@ -151,6 +152,7 @@ def constant_time_equals(left: str, right: str) -> bool:
     """
     return secrets.compare_digest(left, right)
 
+
 # -----------------------------------------------------------------------------
 # OTP helpers (verification + sign-in approval codes)
 # -----------------------------------------------------------------------------
@@ -171,4 +173,3 @@ def verify_otp_hash(plain_otp: str, hashed_otp: str) -> bool:
     """Safely compare plain OTP against its stored SHA-256 hash in constant time."""
     computed = hash_otp(plain_otp)
     return secrets.compare_digest(computed, hashed_otp)
-
