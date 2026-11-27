@@ -52,13 +52,15 @@ Starts PostgreSQL and the backend. Database only: `docker compose up -d db`.
 ```bash
 uv sync --all-extras
 uv run alembic upgrade head
-uv run uvicorn vaultdocs.main:app --reload --port 8000
+uv run uvicorn vaultdocs.main:app --reload --port 8001
 ```
 
-- API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
-- Health check: http://localhost:8000/v1/health
-- Browser demo UI (register/login/upload/download/share): http://localhost:8000/demo
+- API: http://localhost:8001 (or port 8000)
+- Swagger UI: http://localhost:8001/docs
+- Health check: http://localhost:8001/v1/health
+- Browser demo UI (register/login/upload/download/share): http://localhost:8001/demo
+
+> **Note on Ports:** By default, VaultDocs runs on port `8001` to prevent port collisions if port `8000` is in use by another service/container. The frontend is pre-configured to proxy API calls to port `8001`. You can customize the target using `VITE_BACKEND_URL` in the frontend.
 
 ### 3. Frontend
 
@@ -68,7 +70,7 @@ npm install
 npm run dev
 ```
 
-- App: http://localhost:3000 (Vite proxies `/v1` requests to the backend automatically)
+- App: http://localhost:3000 (Vite proxies `/v1` requests to http://localhost:8001 automatically)
 
 ## Quality Checks
 
